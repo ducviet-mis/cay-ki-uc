@@ -80,7 +80,6 @@
     config.students = Array.from({length:Math.max(config.students.length,wishes.length)},(_,i)=>"Bạn " + (i+1));
     config.wishes = wishes.map(({wish},student)=>({student,text:wish}));
     config.bushes.items = [];
-    config.photos = [];
   }
 
   function photoFile(file) {

@@ -749,7 +749,6 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
   if (!await window.CayData.start(CONFIG)) return;
   if (CONFIG.publicView) {
     document.getElementById("readLetter").hidden=true;
-    document.getElementById("fallbackPhotos").hidden=true;
     document.getElementById("bushNav").hidden=true;
     document.getElementById("bushUnlock").hidden=false;
     document.getElementById("bushAuthor").hidden=true;
