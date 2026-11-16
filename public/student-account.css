@@ -1,0 +1,94 @@
+.cay-role-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 16px;
+  border: 1px solid #d9b26a55;
+  border-radius: 12px;
+  background: #19291e;
+}
+.cay-role-picker button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #f3e5cd;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cay-role-picker button[aria-pressed="true"] {
+  background: #455540;
+  color: #ffebc2;
+}
+#cayStudentPanel {
+  display: grid;
+  gap: 10px;
+}
+#cayStudentPanel :is(button, a) {
+  display: grid;
+  place-items: center;
+  min-height: 50px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 11px;
+  background: #dec07d;
+  color: #202921;
+  font: inherit;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+#cayStudentPanel :is(button, a):hover:not(:disabled) { background: #efd093; }
+.cay-account-dock[hidden], .cay-role-picker[hidden], #cayStudentPanel[hidden] {
+  display: none;
+}
+.cay-account-dock {
+  position: fixed;
+  z-index: 1010;
+  left: max(12px, env(safe-area-inset-left));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  max-width: min(340px, calc(100vw - 126px));
+  padding: 3px 4px 3px 12px;
+  border: 1px solid #d9b26a66;
+  border-radius: 13px;
+  background: #203126;
+  color: #f4e6cd;
+  box-shadow: 0 8px 20px #080c1040;
+}
+.cay-account-dock > div { min-width: 0; }
+.cay-account-dock span, .cay-account-dock strong { display: block; }
+.cay-account-dock span { color: #ddc59a; font-size: .68rem; }
+.cay-account-dock strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .8rem;
+}
+.cay-account-dock button {
+  flex: none;
+  min-height: 44px;
+  padding-inline: 8px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #f1d394;
+  font: inherit;
+  font-size: .75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cay-account-dock button:hover { background: #3c4934; }
+.cay-account-dock p { margin: 2px 0; font-size: .7rem; }
+.cay-account-dock p:empty { display: none; }
+body[data-cay-locked] > #studentAccount { visibility: visible; }
+html[data-cay-welcome] .cay-account-dock,
+body.intro-active:not([data-cay-locked]) .cay-account-dock { display: none; }
+body:has(.cay-account-dock:not([hidden])) .tools.album-entry {
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 58px);
+}

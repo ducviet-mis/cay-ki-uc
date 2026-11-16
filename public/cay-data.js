@@ -529,7 +529,8 @@
   }
 
   async function loadOwnSubmission(config, receipt, settings) {
-    const studentClient = window.CayStudentSession(settings);
+    const studentClient = window.CayStudentSession?.client(settings);
+    if (!studentClient) return false;
     const {data:{session}} = await studentClient.auth.getSession();
     if (!session) return false;
     const item = result(await studentClient.rpc("cay_read_own_submission", {
@@ -554,6 +555,69 @@
     return true;
   }
 
+  function setupStudentEntry(settings, showRoles) {
+    const student = window.CayStudentSession;
+    const studentClient = student?.client(settings);
+    const studentRole = $("cayRoleStudent"), teacherRole = $("cayRoleTeacher");
+    const studentPanel = $("cayStudentPanel"), teacherForm = $("cayLoginForm");
+    const google = $("cayHomeGoogle"), link = $("cayStudentLink");
+    const status = $("cayHomeStudentStatus");
+    const hint = $("cayLoginHint");
+    let accountId;
+
+    if (showRoles) {
+      function selectRole(isStudent) {
+        studentRole.setAttribute("aria-pressed", String(isStudent));
+        teacherRole.setAttribute("aria-pressed", String(!isStudent));
+        studentPanel.hidden = !isStudent;
+        teacherForm.hidden = isStudent;
+        hint.textContent = isStudent
+          ? "Đăng nhập để gửi lời chúc và tâm sự."
+          : "Thầy cô nhập mã được gửi riêng để mở cây.";
+      }
+      $("cayRolePicker").hidden = false;
+      studentRole.addEventListener("click", () => selectRole(true));
+      teacherRole.addEventListener("click", () => selectRole(false));
+      selectRole(true);
+      if (!studentClient) status.textContent = "Chưa tải được đăng nhập. Bạn thử tải lại trang nhé.";
+      google.addEventListener("click", async () => {
+        google.disabled = true;
+        status.textContent = "Đang mở Google…";
+        try {
+          await student.signIn(studentClient);
+        } catch {
+          status.textContent = "Chưa mở được Google. Bạn thử lại nhé.";
+          google.disabled = false;
+        }
+      });
+    }
+
+    if (!studentClient) return;
+    student.bindSignOut(studentClient);
+    studentClient.auth.onAuthStateChange((event, session) => {
+      if (accountId && (event === "SIGNED_OUT" || (session && session.user.id !== accountId))) {
+        student.returnToLogin();
+      }
+    });
+    async function restoreAccount() {
+      try {
+        const {data:{session}} = await studentClient.auth.getSession();
+        if (!session) return;
+        accountId = session.user.id;
+        student.showAccount(session.user.email ?? "Tài khoản Google");
+        link.hidden = false;
+        google.hidden = true;
+        const [profile] = result(await studentClient.rpc("cay_get_student_account"));
+        if (profile) student.showAccount(profile.student_name);
+      } catch {
+        if (accountId) status.textContent = "Bạn có thể mở trang học sinh để tải lại thông tin.";
+      } finally {
+        google.disabled = false;
+      }
+    }
+    void restoreAccount();
+  }
+
   async function start(config) {
     const query = new URLSearchParams(location.search);
     const admin = query.get("admin") === "1";
@@ -567,7 +631,7 @@
     $("cayLoginTitle").textContent = admin ? "Quản lý " + siteName : siteName;
     if (admin) $("cayLoginHint").textContent = "Nhập mã quản lý để thêm ảnh lớp và chỉnh nội dung.";
     $("cayAdminLink").hidden = admin;
-    $("cayStudentLink").hidden = admin || receipt !== null;
+    if (!admin) setupStudentEntry(settings, receipt === null);
     $("cayPasswordLabel").textContent = admin ? "Mã quản lý" : "Mã của cô giáo";
     $("cayLoginSubmit").textContent = admin ? "Mở trang quản lý" : "Mở cây";
     password.inputMode = "numeric";

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#171c1d">
 <title>Cây Tri Ân Bốn Mùa</title>
-<script src="./cay-presentation.js"></script>
+<script src="./cay-presentation.js?v=role-2"></script>
 <script>
 const CONFIG = {
   ...window.CayPresentation?.config,
@@ -545,6 +545,7 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
 }
 </style>
 <link id="fontStyles" rel="stylesheet" href="./cay-portal.css" media="all">
+<link rel="stylesheet" href="./student-account.css">
 </head>
 <body class="intro-active" data-cay-locked>
 
@@ -583,7 +584,16 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
   </section>
   <section id="cayLogin" class="cay-sheet" aria-labelledby="cayLoginTitle">
     <h1 id="cayLoginTitle" data-cay-site-name>Cây Kí Ức</h1>
-    <p id="cayLoginHint">Dành cho cô giáo. Cô nhập mã được gửi riêng để mở cây.</p>
+    <p id="cayLoginHint">Đăng nhập để gửi lời chúc và tâm sự.</p>
+    <div id="cayRolePicker" class="cay-role-picker" role="group" aria-label="Chọn cách đăng nhập" hidden>
+      <button id="cayRoleStudent" type="button" aria-pressed="true" aria-controls="cayStudentPanel">Học sinh</button>
+      <button id="cayRoleTeacher" type="button" aria-pressed="false" aria-controls="cayLoginForm">Giáo viên</button>
+    </div>
+    <div id="cayStudentPanel" hidden>
+      <button id="cayHomeGoogle" type="button" disabled>Đăng nhập bằng Google</button>
+      <a id="cayStudentLink" href="./gui-bai.html" hidden>Vào trang học sinh</a>
+      <p id="cayHomeStudentStatus" class="cay-status" role="status"></p>
+    </div>
     <form id="cayLoginForm">
       <label for="cayPassword" id="cayPasswordLabel">Mã truy cập</label>
       <div class="cay-code-field">
@@ -594,7 +604,6 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
       <button id="cayLoginSubmit" type="submit" disabled>Mở cây</button>
     </form>
     <nav class="cay-row" aria-label="Lối vào khác">
-      <a class="cay-link" id="cayStudentLink" href="./gui-bai.html">Học sinh D5K63 · Đăng nhập Google</a>
       <a class="cay-link" id="cayPublicLink" href="./loi-chuc.html">Xem lời chúc</a>
       <a id="cayAdminLink" href="?admin=1" hidden>Trang quản lý</a>
     </nav>
@@ -667,6 +676,14 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
 </main>
 <script>window.CayPresentation?.mount(CONFIG);</script>
 <button id="cayExit" class="button glass" hidden>Đăng xuất</button>
+<aside id="studentAccount" class="cay-account-dock" aria-label="Tài khoản học sinh" hidden>
+  <div>
+    <span>Tài khoản</span>
+    <strong id="studentIdentity"></strong>
+    <p id="studentAccountStatus" role="status"></p>
+  </div>
+  <button id="studentSignOut" type="button">Đăng xuất</button>
+</aside>
 <dialog id="cayPhotoZoom" aria-label="Ảnh tâm sự">
   <form method="dialog"><button class="button">Đóng ảnh</button></form>
   <img alt="Ảnh đính kèm tâm sự">
@@ -799,8 +816,8 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
 </footer>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.3/dist/umd/supabase.min.js"></script>
 <script src="./cay-config.js"></script>
-<script src="./student-session.js?v=1"></script>
-<script src="./cay-data.js?v=google-1"></script>
+<script src="./student-session.js?v=role-2"></script>
+<script src="./cay-data.js?v=role-2"></script>
 <script>
 (async () => {
   "use strict";

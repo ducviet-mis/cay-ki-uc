@@ -22,12 +22,12 @@
     target.toggleAttribute("data-success", kind === "success");
   }
 
-  if (!window.supabase || !window.CayStudentSession || !settings?.url || !settings.publishableKey) {
+  const student = window.CayStudentSession;
+  const client = student?.client(settings);
+  if (!client) {
     message(status, "Chưa tải được phần đăng nhập. Bạn thử tải lại trang nhé.", "error");
     return;
   }
-
-  const client = window.CayStudentSession(settings);
 
   async function rpc(name, args) {
     const {data, error} = await client.rpc(name, args);
@@ -50,7 +50,7 @@
   }
 
   function setProfile({student_number, student_name}) {
-    $("studentIdentity").textContent = student_number + ". " + student_name;
+    student.showAccount(student_number + ". " + student_name);
     claim.hidden = true;
     form.hidden = $("studentHistory").hidden = false;
     applyTeacherPreset();
@@ -89,6 +89,7 @@
     ));
     $("claimConfirmation").checked = false;
     claim.hidden = !rows.length;
+    if (rows.length) choice.focus({preventScroll: true});
     message(status, rows.length ? "" : "Hiện chưa có tên nào để chọn. Bạn liên hệ người quản lý lớp nhé.");
   }
 
@@ -104,8 +105,7 @@
     if (!session) return showLogin();
     accountId = session.user.id;
     $("studentLogin").hidden = true;
-    $("studentAccount").hidden = false;
-    $("studentIdentity").textContent = session.user.email ?? "Tài khoản Google";
+    student.showAccount(session.user.email ?? "Tài khoản Google");
     const [profile] = await rpc("cay_get_student_account");
     if (!profile) return loadRoster();
     setProfile(profile);
@@ -118,33 +118,19 @@
     try {
       const preset = query.get("co");
       if (/^co-[1-4]$/.test(preset ?? "")) sessionStorage.setItem("cay-student-teacher", preset);
-      const redirectTo = new URL("./gui-bai.html", location.href).href;
-      const {error} = await client.auth.signInWithOAuth({
-        provider: "google", options: {redirectTo, queryParams: {prompt: "select_account"}}
-      });
-      if (error) throw error;
+      await student.signIn(client);
     } catch {
       showLogin("Chưa mở được đăng nhập Google. Bạn thử lại sau nhé.");
     }
   });
 
-  signOut.addEventListener("click", async () => {
-    signOut.disabled = true;
-    try {
-      const {error} = await client.auth.signOut({scope: "local"});
-      if (error) throw error;
-      location.replace("./gui-bai.html");
-    } catch {
-      signOut.disabled = false;
-      message(status, "Chưa đăng xuất được. Bạn thử lại nhé.", "error");
-    }
-  });
+  student.bindSignOut(client);
 
   client.auth.onAuthStateChange((event, session) => {
     if (accountId && (event === "SIGNED_OUT" || (session && session.user.id !== accountId))) {
       accountId = null;
       fields.disabled = true;
-      location.reload();
+      student.returnToLogin();
     }
   });
 
