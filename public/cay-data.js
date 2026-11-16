@@ -77,10 +77,15 @@
   async function loadPublicTree(config, slug, {url,publishableKey}) {
     const endpoint = new URL("/rest/v1/cay_public_wishes",url);
     endpoint.search = new URLSearchParams({select:"wish",teacher_slug:"eq." + slug,order:"wish.asc"});
-    const [response, photos, teachers] = await Promise.all([
+    const classSizeUrl = new URL("/rest/v1/rpc/cay_class_size",url);
+    const classSize = fetch(classSizeUrl,{headers:{apikey:publishableKey}})
+      .then(response => response.ok ? response.json() : null)
+      .catch(() => null);
+    const [response, photos, teachers, rosterSize] = await Promise.all([
       fetch(endpoint,{headers:{apikey:publishableKey}}),
       loadSharedGallery(slug,url,publishableKey).catch(() => []),
-      window.CAY_TEACHERS.load()
+      window.CAY_TEACHERS.load(),
+      classSize
     ]);
     if (!response.ok) throw new Error("Chưa mở được cây công khai. Hãy tải lại trang để thử lại.");
     const wishes = await response.json();
@@ -93,7 +98,8 @@
       closing:"Thương mến,",
       signature:"Tập thể lớp"
     };
-    config.students = Array.from({length:Math.max(config.students.length,wishes.length)},(_,i)=>"Bạn " + (i+1));
+    const studentCount = Number.isSafeInteger(rosterSize) && rosterSize > 0 ? rosterSize : config.students.length;
+    config.students = Array.from({length:Math.max(studentCount,wishes.length)},(_,i)=>"Bạn " + (i+1));
     config.wishes = wishes.map(({wish},student)=>({student,text:wish}));
     config.bushes.items = [];
     if (photos.length) config.photos = photos;
