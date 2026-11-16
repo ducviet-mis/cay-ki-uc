@@ -25,6 +25,20 @@
     .cay-entry .cay-status { margin:0; min-height:1.5em; line-height:1.5; overflow-wrap:anywhere; }
     .cay-entry .cay-status[data-error] { color:#ffd8cf; }
     .cay-entry .cay-status[data-success] { color:#e6d5a4; }
+    .story-example { border:1px solid #e2c8944a; border-radius:9px; background:#24352a; }
+    .story-example summary { min-height:44px; padding:11px 12px; color:#efdbaf; cursor:pointer; font-size:.87rem; font-weight:600; }
+    .story-example summary::marker { color:var(--cay-gold); }
+    .story-paper-preview {
+      margin:0; padding:clamp(14px,4vw,24px); color:#473124;
+      border:1px solid #f8eacb; border-radius:9px 7px 9px 6px;
+      background:radial-gradient(ellipse at 23% 8%,#fff6df,transparent 82%),#f0e0bf;
+    }
+    .story-example .story-paper-preview { margin:0 8px 8px; }
+    .story-paper-preview h3 { margin:0 0 10px; color:#624836; font:500 clamp(1.05rem,3.5vw,1.3rem)/1.25 var(--cay-serif); overflow-wrap:anywhere; }
+    .story-paper-preview p { margin:0; font:italic 500 clamp(1.05rem,3.8vw,1.35rem)/1.55 var(--cay-serif); overflow-wrap:anywhere; white-space:pre-wrap; }
+    .story-paper-preview p + p { margin-top:.85em; }
+    .story-preview h2 { margin:0 0 8px; color:#efdbaf; font-size:.87rem; font-weight:600; }
+    #storyPreviewText { max-height:min(38dvh,20rem); overflow:auto; }
     @media (max-width:420px) { .cay-entry .cay-entry-person { grid-template-columns:1fr; } }
   </style>
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.3/dist/umd/supabase.min.js"></script>
@@ -50,6 +64,21 @@
         </label>
         <label>Lời chúc<textarea name="wish" rows="3" maxlength="3000"></textarea></label>
         <label>Tâm sự riêng<textarea name="story" rows="5" maxlength="12000"></textarea></label>
+        <details class="story-example">
+          <summary>Xem bài mẫu tham khảo</summary>
+          <div class="story-paper-preview">
+            <p>Kính gửi cô,</p>
+            <p>Em vẫn nhớ lần làm sai bài trên bảng và đứng lúng túng. Cô bảo em cứ bình tĩnh kể lại cách mình nghĩ, rồi cùng em tìm chỗ sai. Từ hôm ấy, em dám giơ tay nhiều hơn, cả khi em chưa chắc về câu trả lời.</p>
+            <p>Em cảm ơn cô vì đã kiên nhẫn lắng nghe em. Em chúc cô luôn mạnh khỏe và có nhiều niềm vui trong những buổi lên lớp.</p>
+          </div>
+        </details>
+        <section class="story-preview" id="storyPreview" aria-labelledby="storyPreviewLabel" hidden>
+          <h2 id="storyPreviewLabel">Xem trước bài của bạn</h2>
+          <div class="story-paper-preview">
+            <h3 id="storyPreviewTitle">Tâm sự của bạn</h3>
+            <p id="storyPreviewText" tabindex="0"></p>
+          </div>
+        </section>
         <label>Ảnh đính kèm (nếu có)
           <input name="photos" type="file" accept="image/jpeg,image/png,image/webp" multiple>
           <small>Tối đa 3 ảnh JPG, PNG hoặc WebP, mỗi ảnh tối đa 10 MB.</small>

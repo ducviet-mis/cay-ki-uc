@@ -25,9 +25,26 @@
     auth: {storageKey: "cay-student-session", persistSession: true, detectSessionInUrl: false}
   });
   const imageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+  const storyInput = form.elements.namedItem("story");
+  const nameInput = form.elements.namedItem("studentName");
+  const storyPreview = document.getElementById("storyPreview");
+  const previewTitle = document.getElementById("storyPreviewTitle");
+  const previewText = document.getElementById("storyPreviewText");
   let draft = null;
-  form.addEventListener("input", () => { draft = null; });
+
+  function updateStoryPreview() {
+    const text = storyInput.value.trim();
+    storyPreview.hidden = !text;
+    previewTitle.textContent = "Tâm sự của " + (nameInput.value.trim() || "bạn");
+    previewText.textContent = text;
+  }
+
+  form.addEventListener("input", event => {
+    draft = null;
+    if (event.target === storyInput || event.target === nameInput) updateStoryPreview();
+  });
   form.addEventListener("change", () => { draft = null; });
+  updateStoryPreview();
 
   function readDraft() {
     const field = name => form.elements.namedItem(name).value.trim();
@@ -85,8 +102,9 @@
 
       draft = null;
       form.reset();
-      form.elements.namedItem("studentName").value = name;
+      nameInput.value = name;
       form.elements.namedItem("studentNumber").value = String(number);
+      updateStoryPreview();
       message("Đã nhận bài gửi của bạn. Bài sẽ lên cây sau khi được nhập trong trang quản lý.", "success");
     } catch (error) {
       if (error.code === "PT410") draft = null;
