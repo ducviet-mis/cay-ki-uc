@@ -594,7 +594,7 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
       <button id="cayLoginSubmit" type="submit" disabled>Mở cây</button>
     </form>
     <nav class="cay-row" aria-label="Lối vào khác">
-      <a class="cay-link" href="./loi-chuc.html">Xem lời chúc</a>
+      <a class="cay-link" id="cayPublicLink" href="./loi-chuc.html">Xem lời chúc</a>
       <a id="cayAdminLink" href="?admin=1" hidden>Trang quản lý</a>
     </nav>
     <button id="cayStoryReplay" type="button" hidden>Xem lại phần mở đầu</button>
@@ -944,20 +944,32 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       else if(entry.index>index) { readerFollowing=entry.index; break; }
     }
     if(item.hasStory) { readStories.add(index); updateBushProgress(); }
-    byId("bushHeading").textContent=CONFIG.publicView ? "Tâm sự riêng tư" : `${String(bushConfig.heading??"").trim()||"Tâm sự của"} ${item.name}`;
-    byId("bushText").textContent=CONFIG.publicView ? "Phần này được khóa. Cô nhập mã riêng để đọc tâm sự." : item.hasStory ? item.text : "Chưa có tâm sự";
-    byId("bushText").hidden=item.hasStory && !item.text.trim();
-    showStoryPhotos(item.photos);
-    byId("bushText").classList.toggle("missing",!CONFIG.publicView && !item.hasStory);
-    byId("bushAuthor").textContent=item.name;
-    byId("bushDate").textContent=item.hasStory ? item.date : "";
-    byId("bushDate").hidden=!item.hasStory || !item.date;
+    renderStory(item,!!CONFIG.publicView);
+  }
+  function renderStory(item,locked) {
+    const heading=item.title ?? `${String(bushConfig.heading??"").trim()||"Tâm sự của"} ${item.name}`;
+    byId("bushHeading").textContent=locked ? "Tâm sự riêng tư" : heading;
+    byId("bushUnlock").hidden=!locked;
+    byId("bushText").textContent=locked ? "Phần này được khóa. Cô nhập mã riêng để đọc tâm sự." : item.hasStory ? item.text : "Chưa có tâm sự";
+    byId("bushText").hidden=!locked && item.hasStory && !item.text.trim();
+    showStoryPhotos(locked ? [] : item.photos);
+    byId("bushText").classList.toggle("missing",!locked && !item.hasStory);
+    byId("bushAuthor").hidden=locked;
+    byId("bushAuthor").textContent=locked ? "" : item.name;
+    byId("bushDate").textContent=!locked && item.hasStory ? item.date : "";
+    byId("bushDate").hidden=locked || !item.hasStory || !item.date;
     reader.classList.toggle("compact",!item.hasStory || (item.text.length<=220 && item.text.split("\n").length<=6));
     readerPrev.disabled=readerPrevious===undefined; readerNext.disabled=readerFollowing===undefined;
     reader.removeAttribute("data-travel");
     if(!reader.open) reader.showModal();
     readerScroll.scrollTo({top:0,behavior:"instant"});
     scrollFades(); readerClose.focus({preventScroll:true});
+  }
+  function showOwnStory() {
+    readerStudent=-1; readerPrevious=readerFollowing=undefined;
+    readerNavigate=null;
+    readerReturn=()=>byId(document.body.dataset.sceneMode==="3d" ? "classButton" : "fallbackWishes").focus({preventScroll:true});
+    renderStory(CONFIG.ownSubmission,false);
   }
   function stepBushReader(step) {
     if(reader.hasAttribute("data-travel")) return;
@@ -1212,7 +1224,8 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       paint();
     }
     retryButton.addEventListener("click",retry);
-    byId("fallbackWishes").addEventListener("click",showWishes);
+    if (CONFIG.ownSubmission) byId("fallbackWishes").textContent="Bài của mình";
+    byId("fallbackWishes").addEventListener("click",CONFIG.ownSubmission ? showOwnStory : showWishes);
     byId("fallbackPhotos").addEventListener("click",()=>showPhotos());
     panel.addEventListener("keydown",event=>{
       if(!stepPhoto || (event.key!=="ArrowLeft" && event.key!=="ArrowRight")) return;
@@ -1445,7 +1458,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
         if(waiting) clearContinue();
         if(state.ready) {
           const readingFallback=byId("fallbackPanel").open || state.review;
-          if(!readingFallback && !reader.open) show3D(retry);
+          if(!readingFallback && (!reader.open || CONFIG.ownSubmission)) show3D(retry);
           state.warming=state.stage===STAGES.LETTER && !state.skipping && !waiting;
         }
         fallback.update(state.failed,false,state.ready);
@@ -1745,8 +1758,12 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
   }
 
   byId("title").textContent=`Tri ân Cô ${CONFIG.teacherName}`;
-  byId("classTitle").textContent=CONFIG.publicView ? "Chạm vào thiệp để đọc lời chúc" : `Tập thể lớp ${CONFIG.className}`;
+  byId("classTitle").textContent=CONFIG.ownSubmission ? "Bản xem lại bài đã gửi" : CONFIG.publicView ? "Chạm vào thiệp để đọc lời chúc" : `Tập thể lớp ${CONFIG.className}`;
   setupIntro(bootScene);
+  if (CONFIG.ownSubmission) {
+    byId("classButton").textContent="Bài của mình";
+    showOwnStory();
+  }
 
   function bootScene(story) {
   const $ = byId;
@@ -4720,7 +4737,10 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
   }
   $("search").hidden=tags.length<12; $("all").disabled=!tags.length;
   $("search").addEventListener("input",refreshList);
-  $("classButton").addEventListener("click",()=>{ if (started) setRoster(roster.hidden); });
+  $("classButton").addEventListener("click",()=>{
+    if (CONFIG.ownSubmission) showOwnStory();
+    else if (started) setRoster(roster.hidden);
+  });
   $("classAlbum").addEventListener("click",()=>{
     if(!started || inspection || tour) return;
     setRoster(false); showHover(null); touchScene();

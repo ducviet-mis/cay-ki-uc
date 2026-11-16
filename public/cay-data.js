@@ -477,10 +477,48 @@
     return data;
   }
 
+  function revealPublicTree(exitText, exitUrl) {
+    $("cayPortal").hidden = true;
+    document.body.removeAttribute("data-cay-locked");
+    const exit = $("cayExit");
+    exit.textContent = exitText;
+    exit.hidden = false;
+    exit.addEventListener("click",() => location.assign(exitUrl));
+  }
+
+  async function loadOwnSubmission(config, receipt, settings) {
+    const studentClient = window.supabase.createClient(settings.url, settings.publishableKey, {
+      auth: {storageKey: "cay-student-session", persistSession: true, detectSessionInUrl: false}
+    });
+    const {data:{session}} = await studentClient.auth.getSession();
+    if (!session) return false;
+    const item = result(await studentClient.rpc("cay_read_own_submission", {
+      p_id: receipt === "mine" ? null : receipt
+    }).maybeSingle());
+    if (!item) return false;
+
+    await loadPublicTree(config,item.teacher_slug,settings);
+    const isStory = !!item.story || item.photo_paths.length > 0;
+    config.ownSubmission = {
+      name: item.student_name,
+      title: (isStory ? "Tâm sự của " : "Lời chúc của ") + item.student_name,
+      text: isStory ? item.story : item.wish,
+      photos: item.photo_paths,
+      date: new Intl.DateTimeFormat("vi-VN", {
+        timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric"
+      }).format(new Date(item.submitted_at)),
+      hasStory: true
+    };
+    config.intro.enabled = false;
+    client = studentClient;
+    return true;
+  }
+
   async function start(config) {
     const query = new URLSearchParams(location.search);
     const admin = query.get("admin") === "1";
     const publicSlug = query.get("xem") ?? "";
+    const receipt = query.get("bai");
     const form = $("cayLoginForm");
     const password = $("cayPassword");
     const status = $("cayLoginStatus");
@@ -493,6 +531,25 @@
     $("cayLoginSubmit").textContent = admin ? "Mở trang quản lý" : "Mở cây";
     password.inputMode = "numeric";
     password.maxLength = 60;
+    if (!admin && receipt !== null) {
+      $("cayLoginTitle").textContent = "Bài của mình";
+      const hint = $("cayLoginHint"), back = $("cayPublicLink");
+      form.hidden = true;
+      back.href = "./gui-bai.html";
+      back.textContent = "Về biểu mẫu";
+      hint.textContent = "Đang mở bài gửi…";
+      try {
+        const validReceipt = receipt === "mine" || /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(receipt);
+        if (validReceipt && await loadOwnSubmission(config,receipt,settings)) {
+          revealPublicTree("Về biểu mẫu","./gui-bai.html");
+          return true;
+        }
+        hint.textContent = "Chưa tìm thấy bài của bạn. Hãy mở bằng trình duyệt đã dùng để gửi bài.";
+      } catch {
+        hint.textContent = "Chưa mở được bài gửi. Hãy tải lại trang để thử lại.";
+      }
+      return false;
+    }
     if (!settings?.url || !settings.publishableKey) {
       status.textContent = "Trang đang chờ cấu hình kết nối Supabase.";
       $("cayLoginSubmit").disabled = true;
@@ -502,12 +559,7 @@
       status.textContent = "Đang mở cây…";
       try {
         await loadPublicTree(config,publicSlug,settings);
-        $("cayPortal").hidden = true;
-        document.body.removeAttribute("data-cay-locked");
-        const exit = $("cayExit");
-        exit.textContent = "Chọn cây khác";
-        exit.hidden = false;
-        exit.addEventListener("click",() => location.assign("./loi-chuc.html"));
+        revealPublicTree("Chọn cây khác","./loi-chuc.html");
         return true;
       } catch {
         status.textContent = "Chưa mở được cây công khai. Hãy tải lại trang để thử lại.";

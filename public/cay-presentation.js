@@ -35,7 +35,7 @@
   const root = document.documentElement;
   const params = new URLSearchParams(location.search);
   const showWelcome = root.dataset.cayPage === "portal" &&
-    params.get("admin") !== "1" && !/^co-[1-4]$/.test(params.get("xem") ?? "");
+    params.get("admin") !== "1" && !params.has("bai") && !/^co-[1-4]$/.test(params.get("xem") ?? "");
   const slides = CONFIG.slides.map((slide,index)=>({...slide,index})).filter(slide=>
     [slide.title,slide.body,slide.quote,slide.note].some(value=>value?.trim()));
   if (showWelcome && slides.length) root.dataset.cayWelcome = "active";

@@ -5,6 +5,7 @@
   const fields = document.getElementById("submissionFields");
   const button = document.getElementById("submissionButton");
   const status = document.getElementById("submissionStatus");
+  const view = document.getElementById("submissionView");
   const teacher = form.elements.namedItem("teacher");
   const preset = new URLSearchParams(location.search).get("co");
   if (/^co-[1-4]$/.test(preset ?? "")) teacher.value = preset;
@@ -25,26 +26,9 @@
     auth: {storageKey: "cay-student-session", persistSession: true, detectSessionInUrl: false}
   });
   const imageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
-  const storyInput = form.elements.namedItem("story");
-  const nameInput = form.elements.namedItem("studentName");
-  const storyPreview = document.getElementById("storyPreview");
-  const previewTitle = document.getElementById("storyPreviewTitle");
-  const previewText = document.getElementById("storyPreviewText");
   let draft = null;
-
-  function updateStoryPreview() {
-    const text = storyInput.value.trim();
-    storyPreview.hidden = !text;
-    previewTitle.textContent = "Tâm sự của " + (nameInput.value.trim() || "bạn");
-    previewText.textContent = text;
-  }
-
-  form.addEventListener("input", event => {
-    draft = null;
-    if (event.target === storyInput || event.target === nameInput) updateStoryPreview();
-  });
+  form.addEventListener("input", () => { draft = null; });
   form.addEventListener("change", () => { draft = null; });
-  updateStoryPreview();
 
   function readDraft() {
     const field = name => form.elements.namedItem(name).value.trim();
@@ -102,10 +86,11 @@
 
       draft = null;
       form.reset();
-      nameInput.value = name;
+      form.elements.namedItem("studentName").value = name;
       form.elements.namedItem("studentNumber").value = String(number);
-      updateStoryPreview();
-      message("Đã nhận bài gửi của bạn. Bài sẽ lên cây sau khi được nhập trong trang quản lý.", "success");
+      view.href = "./?bai=" + encodeURIComponent(id);
+      message("Đã nhận bài gửi. Bạn có thể xem lại bài của mình ngay trên cây.", "success");
+      view.focus();
     } catch (error) {
       if (error.code === "PT410") draft = null;
       const userError = error instanceof Error || ["22023", "PT410", "PT429", "42501"].includes(error.code);
