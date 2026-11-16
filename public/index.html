@@ -624,12 +624,21 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
       </form>
     </details>
     <details>
-      <summary><strong>Nhập lời chúc, tâm sự và ảnh cá nhân</strong></summary>
+      <summary><strong>Thu bài và nhập Excel</strong></summary>
+      <p><a class="cay-link" href="./gui-bai.html" target="_blank" rel="noopener">Mở biểu mẫu gửi cho lớp</a></p>
+      <form id="cayExport">
+        <button type="submit">Xuất bài mới ra Excel</button>
+        <p id="cayExportStatus" class="cay-status" role="status"></p>
+      </form>
       <form id="cayImport">
-        <label>Cây nhận mặc định<select id="cayImportTeacher" name="teacher"></select></label>
-        <label>CSV câu trả lời<input type="file" id="cayCsv" accept=".csv,text/csv" required></label>
-        <label>Ảnh đính kèm đã tải từ Drive<input type="file" id="cayCsvPhotos" accept="image/jpeg,image/png,image/webp" multiple></label>
-        <button type="submit">Nhập bài gửi</button>
+        <label>Tệp bài gửi<input type="file" id="cayCsv" accept=".xlsx,.csv" required></label>
+        <p>Với Excel xuất từ biểu mẫu, ảnh tự đi theo mã bài gửi.</p>
+        <details>
+          <summary>Tùy chọn khi nhập tệp tự soạn</summary>
+          <label>Cây nhận mặc định<select id="cayImportTeacher" name="teacher"></select></label>
+          <label>Tệp ảnh có tên ghi trong bảng<input type="file" id="cayCsvPhotos" accept="image/jpeg,image/png,image/webp" multiple></label>
+        </details>
+        <button type="submit">Nhập và đưa lên cây</button>
         <p id="cayImportStatus" class="cay-status" role="status"></p>
       </form>
     </details>

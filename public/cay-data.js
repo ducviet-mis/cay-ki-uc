@@ -118,7 +118,7 @@
 
   // Chính sách lưu trữ chỉ cho xoá tệp không còn được tham chiếu.
   async function removeUnused(paths) {
-    const unique = [...new Set(paths.filter(Boolean))];
+    const unique = [...new Set(paths.filter(path => path && !path.startsWith("submission/")))];
     if (unique.length) await client.storage.from(bucketName).remove(unique);
   }
 
@@ -143,17 +143,85 @@
     return rows.filter(cells => cells.some(clean));
   }
 
+  let workbookLibrary;
+  function loadWorkbook() {
+    if (window.XLSX?.version === "0.20.3") return Promise.resolve(window.XLSX);
+    if (!workbookLibrary) {
+      workbookLibrary = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.mini.min.js";
+        const fail = () => {
+          script.remove();
+          reject(new Error("Chưa tải được phần xử lý Excel. Vui lòng thử lại."));
+        };
+        script.addEventListener("load", () => window.XLSX?.version === "0.20.3" ? resolve(window.XLSX) : fail(), {once: true});
+        script.addEventListener("error", fail, {once: true});
+        document.head.append(script);
+      }).catch(error => {
+        workbookLibrary = null;
+        throw error;
+      });
+    }
+    return workbookLibrary;
+  }
+
+  async function workbookRows(file) {
+    if (/\.csv$/i.test(file.name)) return parseCsv(await file.text());
+    if (!/\.xlsx$/i.test(file.name) || file.size > 6 * 1024 * 1024) {
+      throw new Error("Chọn tệp Excel .xlsx hoặc CSV, tối đa 6 MB.");
+    }
+    const XLSX = await loadWorkbook();
+    try {
+      const book = XLSX.read(await file.arrayBuffer(), {type: "array", sheetRows: 502, cellFormula: false});
+      const sheet = book.Sheets[book.SheetNames[0]];
+      if (!sheet) return [];
+      const range = sheet["!fullref"] ?? sheet["!ref"];
+      if (range && XLSX.utils.decode_range(range).e.r >= 501) {
+        throw new RangeError("Mỗi lượt nhập tối đa 500 bài gửi. Vui lòng chia tệp thành các lượt nhỏ hơn.");
+      }
+      return XLSX.utils.sheet_to_json(sheet, {header: 1, defval: "", raw: false, blankrows: false});
+    } catch (error) {
+      if (error instanceof RangeError && error.message.startsWith("Mỗi lượt nhập")) throw error;
+      throw new Error("Chưa đọc được tệp Excel. Hãy mở và lưu lại dưới dạng .xlsx rồi thử lại.");
+    }
+  }
+
+  async function exportMessages() {
+    const rows = result(await client.rpc("cay_export_submissions"));
+    if (!rows.length) return "Chưa có bài mới để xuất.";
+    const XLSX = await loadWorkbook();
+    const formatDate = new Intl.DateTimeFormat("vi-VN", {
+      timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric"
+    });
+    const cells = [
+      ["co","ma_hoc_sinh","ho_ten","loi_chuc","tam_su","ngay","ma_bai_gui","so_anh"],
+      ...rows.map(row => [row.teacher_slug, "HS" + String(row.student_number).padStart(2, "0"), row.student_name,
+        row.wish, row.story, formatDate.format(new Date(row.submitted_at)), row.id, row.photo_count])
+    ];
+    const sheet = XLSX.utils.aoa_to_sheet(cells);
+    sheet["!cols"] = [9, 14, 26, 46, 54, 14, 39, 9].map(wch => ({wch}));
+    const book = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(book, sheet, "Bài gửi");
+    XLSX.writeFile(book, "bai-gui-cay-ki-uc.xlsx", {compression: true});
+    return "Đã xuất " + rows.length + " bài gửi.";
+  }
+
   async function importMessages(form, teachers, roster) {
     const selected = $("cayCsv").files[0];
-    if (!selected) throw new Error("Chọn tệp CSV cần nhập.");
-    const [head = [], ...records] = parseCsv(await selected.text());
+    if (!selected) throw new Error("Chọn tệp Excel hoặc CSV cần nhập.");
+    const [head = [], ...records] = await workbookRows(selected);
     const columns = head.map(clean);
     const required = ["ma_hoc_sinh","loi_chuc","tam_su"];
     if (!records.length || required.some(name => !columns.includes(name))) {
-      throw new Error("CSV cần dữ liệu và các cột ma_hoc_sinh, loi_chuc, tam_su.");
+      throw new Error("Tệp cần dữ liệu và các cột ma_hoc_sinh, loi_chuc, tam_su.");
     }
-    if (new Set(columns).size !== columns.length) throw new Error("Tên cột trong CSV bị trùng.");
-    const photoColumns = ["anh_1","anh_2","anh_3"].filter(name => columns.includes(name));
+    if (new Set(columns).size !== columns.length) throw new Error("Tên cột trong tệp bị trùng.");
+    const linked = columns.includes("ma_bai_gui");
+    if (linked && (!columns.includes("ho_ten") || !columns.includes("co"))) {
+      throw new Error("Excel của biểu mẫu cần đủ các cột co, ho_ten và ma_bai_gui.");
+    }
+    if (linked && records.length > 500) throw new Error("Mỗi lượt nhập tối đa 500 bài gửi.");
+    const photoColumns = linked ? [] : ["anh_1","anh_2","anh_3"].filter(name => columns.includes(name));
     const files = new Map();
     for (const file of $("cayCsvPhotos").files) {
       if (files.has(file.name)) throw new Error("Trùng tên tệp ảnh " + file.name + ".");
@@ -163,24 +231,35 @@
     const numbers = new Set(roster.map(student => student.number));
     const keys = new Set();
     const items = records.map((values,index) => {
-      const field = name => values[columns.indexOf(name)] ?? "";
+      const field = name => String(values[columns.indexOf(name)] ?? "");
       const teacher_slug = clean(field("co")) || form.elements.namedItem("teacher").value;
       const code = clean(field("ma_hoc_sinh")).match(/^(?:HS)?([0-9]+)$/i);
       const student_number = Number(code?.[1]);
       const key = teacher_slug + "/" + student_number;
-      if (values.length !== columns.length || !teacherSlugs.has(teacher_slug) ||
-          !numbers.has(student_number) || keys.has(key)) {
+      const validStudent = linked ? Number.isInteger(student_number) && student_number >= 1 && student_number <= 10000
+        : numbers.has(student_number);
+      if (values.length !== columns.length || !teacherSlugs.has(teacher_slug) || !validStudent || keys.has(key)) {
         throw new Error("Dòng " + (index + 2) + " có sai số cột, mã cô/học sinh hoặc bài bị trùng.");
       }
       keys.add(key);
+      const row = {teacher_slug, student_number, wish:field("loi_chuc"), story:field("tam_su"), note_date:clean(field("ngay"))};
+      if (linked) {
+        const submission_id = clean(field("ma_bai_gui")), student_name = clean(field("ho_ten"));
+        if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(submission_id) || student_name.length < 2) {
+          throw new Error("Kiểm tra họ tên và mã bài gửi ở dòng " + (index + 2) + ".");
+        }
+        return {row: {...row, submission_id, student_name}};
+      }
       const names = photoColumns.map(name => clean(field(name))).filter(Boolean);
       const images = names.map(name => {
         if (!files.has(name)) throw new Error("Thiếu tệp " + name + " ở dòng " + (index + 2) + ".");
         return photoFile(files.get(name));
       });
-      return {row:{teacher_slug,student_number,wish:field("loi_chuc"),story:field("tam_su"),
-        note_date:clean(field("ngay"))},images};
+      return {row,images};
     });
+    if (linked) {
+      return result(await client.rpc("cay_publish_submissions", {p_rows: items.map(({row}) => row)}));
+    }
     const oldPaths = new Map();
     if (photoColumns.length) {
       const current = result(await client.from("cay_messages")
@@ -318,8 +397,16 @@
       folder.value = "";
       return "Đã đặt " + rows.length + " ảnh chung lên cả bốn cây.";
     },"Đang kiểm tra thư mục ảnh…");
-    action($("cayImport"),$("cayImportStatus"),async () =>
-      "Đã nhập " + await importMessages($("cayImport"),teachers,roster) + " bài gửi.");
+    action($("cayExport"), $("cayExportStatus"), exportMessages, "Đang xuất Excel…");
+    action($("cayImport"), $("cayImportStatus"), async () => {
+      const count = await importMessages($("cayImport"), teachers, roster);
+      const refreshed = await client.from("cay_students").select("number,name").order("number");
+      if (!refreshed.error) {
+        roster.splice(0, roster.length, ...refreshed.data);
+        $("cayRoster").value = roster.map(student => student.number + "," + student.name).join("\n");
+      }
+      return "Đã đưa " + count + " bài gửi lên cây.";
+    }, "Đang nhập bài gửi…");
 
     function showProfile() {
       const teacher = teachers.find(item => item.slug === profileTeacher.value);
