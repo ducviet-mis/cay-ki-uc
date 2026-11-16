@@ -1,42 +1,25 @@
 <!doctype html>
-<html lang="vi">
+<html lang="vi" data-cay-page="chooser">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex">
   <title>Chọn cây · Cây Kí Ức</title>
-  <style>
-    :root { color-scheme: light; font-family: "Source Sans 3", system-ui, sans-serif; }
-    * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; background: #f2eddf; color: #342e23; }
-    header { background: #263a30; color: #fff7e3; padding: 22px 22px 42px; }
-    header > div, main { max-width: 780px; margin-inline: auto; }
-    header a { color: #f0d8a1; text-underline-offset: 4px; }
-    h1 { font: 500 clamp(2rem, 7vw, 3.7rem)/1.15 "Cormorant Garamond", Georgia, serif; margin: 32px 0 0; }
-    main { padding: 24px 18px 52px; }
-    main > p { margin: 0 0 18px; }
-    nav { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,160px),1fr)); gap: 12px; }
-    nav a {
-      padding: 15px 18px; text-align: center; border: 1px solid #a39375; border-radius: 8px;
-      background: #fffaf0; color: #344337; font-weight: 650; text-decoration: none;
-    }
-    nav a:hover { background: #37503f; border-color: #37503f; color: #fff7e3; }
-    nav a:focus-visible { outline: 2px solid #253f34; outline-offset: 3px; }
-  </style>
+  <link rel="stylesheet" href="./cay-portal.css">
+  <script src="./cay-presentation.js"></script>
 </head>
-<body>
-  <header><div>
-    <a href="./">Quay về Cây Kí Ức</a>
+<body class="cay-chooser cay-surface" data-cay-surface>
+  <main class="cay-choose">
+    <a class="cay-back" href="./" data-cay-site-name data-cay-prefix="Quay về ">Quay về Cây Kí Ức</a>
     <h1>Chọn cây để xem lời chúc</h1>
-  </div></header>
-  <main>
     <p>Vào cây và chạm vào các tấm thiệp trên cành để đọc.</p>
-    <nav aria-label="Chọn cây của cô">
-      <a href="./?xem=co-1">Cây của Cô 1</a>
-      <a href="./?xem=co-2">Cây của Cô 2</a>
-      <a href="./?xem=co-3">Cây của Cô 3</a>
-      <a href="./?xem=co-4">Cây của Cô 4</a>
+    <nav class="cay-choice-grid" aria-label="Chọn cây của cô">
+      <a href="./?xem=co-1" style="--tile:0">Cây của Cô 1</a>
+      <a href="./?xem=co-2" style="--tile:1">Cây của Cô 2</a>
+      <a href="./?xem=co-3" style="--tile:2">Cây của Cô 3</a>
+      <a href="./?xem=co-4" style="--tile:3">Cây của Cô 4</a>
     </nav>
   </main>
+  <script>window.CayPresentation?.mount();</script>
 </body>
 </html>

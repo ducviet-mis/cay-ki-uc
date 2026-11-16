@@ -382,7 +382,8 @@
     const password = $("cayPassword");
     const status = $("cayLoginStatus");
     const settings = window.CAY_SUPABASE;
-    $("cayLoginTitle").textContent = admin ? "Quản lý Cây Kí Ức" : "Cây Kí Ức";
+    const siteName = config.siteName || "Cây Kí Ức";
+    $("cayLoginTitle").textContent = admin ? "Quản lý " + siteName : siteName;
     if (admin) $("cayLoginHint").textContent = "Nhập mã quản lý để thêm ảnh lớp và chỉnh nội dung.";
     $("cayAdminLink").hidden = admin;
     $("cayPasswordLabel").textContent = admin ? "Mã quản lý" : "Mã truy cập";

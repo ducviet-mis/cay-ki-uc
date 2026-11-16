@@ -1,12 +1,14 @@
 <!doctype html>
-<html lang="vi">
+<html lang="vi" data-cay-page="portal">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#171c1d">
 <title>Cây Tri Ân Bốn Mùa</title>
+<script src="./cay-presentation.js"></script>
 <script>
 const CONFIG = {
+  ...window.CayPresentation?.config,
   // Điền tên cô và tên lớp như bạn muốn chúng xuất hiện trên trang.
   teacherName: "[TÊN CÔ]",
   className: "[TÊN LỚP]",
@@ -510,22 +512,60 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
 </head>
 <body class="intro-active" data-cay-locked>
 
-<main id="cayPortal">
+<main id="cayPortal" class="cay-surface" data-cay-surface>
+  <div class="cay-tree-art" aria-hidden="true">
+    <svg class="cay-ink-tree" viewBox="0 0 680 680" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g data-cay-grow="1">
+        <ellipse class="cay-seed-light" cx="344" cy="587" rx="30" ry="18"/>
+        <path pathLength="1" d="M335 588c4-12 13-13 19-7-1 10-11 16-19 7Z M339 589l11-8"/>
+      </g>
+      <g data-cay-grow="2">
+        <path pathLength="1" d="M345 584c3-20-1-30-11-45m7 13c-14 0-27-8-31-18 13-3 24 2 31 18Zm5 12c7-12 17-16 28-14-6 10-16 15-28 14Z"/>
+      </g>
+      <g data-cay-grow="3">
+        <path pathLength="1" d="M312 579c31-12 32-57 27-110-4-58 5-113 25-167m-10 278c-21-25-10-62-5-110 5-43 5-101 15-168m-45 277c-12 4-31 8-53 8m92-6c22 4 44 8 65 7m-84-40c-4-26-3-38 2-69m4-84 14-51"/>
+      </g>
+      <g data-cay-grow="4">
+        <path pathLength="1" d="M344 473c-13-69-49-110-110-153-31-22-60-56-78-99m156 204c-38-40-88-61-147-65-42-3-74-16-106-43m146 51c-37 13-80 17-120 12m141-54c-22-7-58-8-87-3m52-48c-34-14-60-39-78-79m238 277c16-58 46-108 109-151 45-31 79-62 102-104m-186 199c42-29 91-42 141-45 41-2 76-15 108-40m-189 66c45 11 92 14 126 8m-96-80c26-6 65-2 94 6m-46-63c31-21 58-49 77-84m-225 163c-12-39-33-73-63-102-25-24-37-50-41-82m94 129c23-42 45-71 83-96 23-16 36-40 43-62m-142 119c5-37 3-69-4-108m-64 56c-38-1-77-19-101-45m190 50c32-7 55-16 94-48"/>
+      </g>
+      <g data-cay-grow="5">
+        <path pathLength="1" d="M62 329c-14-21-8-51 16-65-6-31 12-60 41-69 0-31 31-58 63-57 16-31 49-48 77-42 21-27 55-40 87-32 27-17 63-14 84 5 35-5 65 11 78 37 34 3 55 22 61 48 31 9 50 34 46 61 27 10 37 35 28 60 19 26 11 51-13 69"/>
+        <path pathLength="1" d="M86 385c-24-4-36-19-35-36m59 53c18 18 41 23 68 13 19 20 48 27 74 13 15 17 39 18 56 5m92 1c23 12 47 9 66-7 26 15 56 8 76-10 27 0 48-7 58-24m-502-98q21-22 45-4m2-97q22-26 50-17m8 66q14-27 42-27m-25-85q23-24 50-14m41-25q25-12 47 7m-22 63q21-26 48-22m49-38q28-13 52 6m-8 52q23-15 51-4m26 53q27-5 49 18m-55 128q20-22 50-21m-138 59q28-16 53-7m-329 9q23-12 51 0"/>
+        <path class="cay-canopy-seeds" pathLength="1" d="M130 221h1m38 78h1m43-166h1m44 48h1m18 65h1m46-130h1m45 98h1m32-94h1m65 8h1m43 127h1m51-66h1m13 109h1m-151-94h1m-202 88h1m-123 28h1"/>
+      </g>
+    </svg>
+  </div>
+  <section id="cayWelcome" hidden aria-label="Phần mở đầu">
+    <p class="cay-story-brand" data-cay-site-name>Cây Kí Ức</p>
+    <div id="cayStoryStage" tabindex="-1">
+      <div id="cayStoryLines" aria-live="polite" aria-atomic="true"></div>
+    </div>
+    <div class="cay-story-controls">
+      <nav id="cayStoryProgress" aria-label="Tiến trình mở đầu"></nav>
+      <button id="cayStorySkip" type="button">Bỏ qua</button>
+    </div>
+  </section>
   <section id="cayLogin" class="cay-sheet" aria-labelledby="cayLoginTitle">
-    <h1 id="cayLoginTitle">Cây Kí Ức</h1>
-    <p id="cayLoginHint">Cô nhập mã được gửi riêng để mở cây của mình.</p>
+    <h1 id="cayLoginTitle" data-cay-site-name>Cây Kí Ức</h1>
+    <p id="cayLoginHint">Nhập mã được gửi riêng để mở cây của mình.</p>
     <form id="cayLoginForm">
-      <label><span id="cayPasswordLabel">Mã truy cập</span><input id="cayPassword" type="password" required autocomplete="off" spellcheck="false" autocapitalize="off"></label>
+      <label for="cayPassword" id="cayPasswordLabel">Mã truy cập</label>
+      <div class="cay-code-field">
+        <input id="cayPassword" type="password" required autocomplete="off" spellcheck="false" autocapitalize="off" aria-describedby="cayLoginStatus">
+        <button id="cayRevealCode" type="button" aria-controls="cayPassword" aria-pressed="false">Hiện mã</button>
+      </div>
+      <p id="cayLoginStatus" class="cay-status" role="status"></p>
       <button id="cayLoginSubmit" type="submit" disabled>Mở cây</button>
     </form>
-    <p id="cayLoginStatus" class="cay-status" role="status"></p>
     <nav class="cay-row" aria-label="Lối vào khác">
       <a class="cay-link" href="./loi-chuc.html">Xem lời chúc</a>
       <a id="cayAdminLink" href="?admin=1" hidden>Trang quản lý</a>
     </nav>
+    <button id="cayStoryReplay" type="button" hidden>Xem lại phần mở đầu</button>
   </section>
   <section id="cayAdmin" class="cay-sheet" hidden aria-labelledby="cayAdminTitle">
-    <header><h1 id="cayAdminTitle">Quản lý Cây Kí Ức</h1><button id="cayAdminSignout">Đăng xuất</button></header>
+    <header><h1 id="cayAdminTitle" data-cay-site-name data-cay-prefix="Quản lý ">Quản lý Cây Kí Ức</h1><button id="cayAdminSignout">Đăng xuất</button></header>
+    <div class="cay-admin-grid">
     <details open>
       <summary><strong>Ảnh lớp</strong></summary>
       <form id="cayGallery">
@@ -575,8 +615,10 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
         <button type="submit">Lưu danh sách</button><p id="cayRosterStatus" class="cay-status" role="status"></p>
       </form>
     </details>
+    </div>
   </section>
 </main>
+<script>window.CayPresentation?.mount(CONFIG);</script>
 <button id="cayExit" class="button glass" hidden>Đăng xuất</button>
 <dialog id="cayPhotoZoom" aria-label="Ảnh tâm sự">
   <form method="dialog"><button class="button">Đóng ảnh</button></form>
