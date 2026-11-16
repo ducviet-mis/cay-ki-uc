@@ -62,7 +62,7 @@ const CONFIG = {
     seedDuration: 7.6, // Số giây từ chữ ký đến khi mầm nhú.
     revealDuration: 5.7, // Số giây hiện tiêu đề, ảnh, thẻ và các nút.
     letterReadDelay: 2.4, // Số giây tối thiểu để đọc sau khi thư hiện xong.
-    skipDuration: 1.28 // Số giây chuyển cảnh khi bỏ qua.
+    skipDuration: .68 // Số giây chuyển cảnh khi bỏ qua.
   }
 };
 // Đổi pond thành true để hiện hồ nhỏ bên phải lối mòn.
@@ -327,7 +327,10 @@ body.intro-active :is(header,.tools,#timeline) { pointer-events:none; transition
 }
 @keyframes hintBreath { 0%,100%{opacity:.44} 50%{opacity:.82} }
 #intro.is-opening .story-hint { visibility:hidden }
-#letterStage { z-index:2; padding:clamp(14px,3vw,34px); padding-bottom:clamp(66px,9vh,93px) }
+#letterStage {
+  z-index:2; padding:clamp(14px,3vw,34px);
+  padding-bottom:max(clamp(66px,9vh,93px),calc(env(safe-area-inset-bottom) + 58px));
+}
 .story-paper {
   --ink-dry:#513925;
   position:relative; display:flex; flex-direction:column;
@@ -373,7 +376,13 @@ body.intro-active :is(header,.tools,#timeline) { pointer-events:none; transition
 }
 .story-button:hover { border-color:#ffd5a98f; background:#4e3528 }
 #introSound,#introSkip { position:absolute; bottom:max(13px,env(safe-area-inset-bottom)); z-index:7 }
-#introSkip { right:max(14px,env(safe-area-inset-right)); opacity:.76 }
+#introSkip {
+  right:max(14px,env(safe-area-inset-right)); min-height:44px; padding-inline:17px;
+  border-color:#f1d399; background:#e6c582; color:#2a1a11;
+  font-size:.84rem; font-weight:600; text-shadow:none; box-shadow:0 5px 20px #140b0873;
+}
+#introSkip:hover { border-color:#fff1c7; background:#f3d99f }
+#introSkip:disabled { cursor:wait; opacity:.82 }
 #introSound { left:max(14px,env(safe-area-inset-left)); opacity:.86 }
 #intro.is-review #introBackdrop { background:#19100bb8; backdrop-filter:blur(8px) }
 #intro.is-review #introDust { display:none }
@@ -388,7 +397,7 @@ body.intro-active :is(header,.tools,#timeline) { pointer-events:none; transition
   100%{ opacity:0; transform:translate(var(--dx),var(--dy)) scale(.22) }
 }
 @media(max-width:550px) {
-  #letterStage { padding-inline:12px; padding-bottom:63px }
+  #letterStage { padding-inline:12px }
   #letterScroll { padding-inline:clamp(17px,5vw,27px) }
 }
 @media(prefers-reduced-motion:reduce) {
@@ -745,7 +754,7 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
   </div>
   <span id="letterMote" aria-hidden="true"></span>
   <button id="introSound" class="story-button" aria-pressed="false">Âm thanh tắt</button>
-  <button id="introSkip" class="story-button">Bỏ qua</button>
+  <button id="introSkip" class="story-button" type="button" aria-keyshortcuts="Escape">Bỏ qua để vào cây</button>
   <div id="introVeil" aria-hidden="true"></div>
 </div>
 <footer id="treeDedication">
@@ -1249,7 +1258,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       grow:duration(cfg.growDuration,14,2),
       reveal:duration(cfg.revealDuration,5.7,1.8),
       read:duration(cfg.letterReadDelay,2.4,2),
-      skip:duration(cfg.skipDuration,1.28,.55)
+      skip:lowMotion ? .24 : duration(cfg.skipDuration,.68,.4)
     };
     const seasonNames=["spring","summer","autumn","winter"];
     const selectedSeason=seasonNames.indexOf(String(cfg.introEndSeason).toLowerCase());
@@ -1497,7 +1506,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       state.skipping=true; state.skippedAt=0;
       clearContinue();
       continueButton.disabled=true; openButton.disabled=true;
-      skipButton.disabled=true; soundButton.disabled=true;
+      skipButton.disabled=true; skipButton.textContent="Đang vào cây…"; soundButton.disabled=true;
       prepareWorld(); wake();
     }
     function stepSkip(dt) {
