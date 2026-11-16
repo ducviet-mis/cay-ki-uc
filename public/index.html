@@ -212,6 +212,7 @@ body.intro-active #timeline {
   transform: translateY(calc(-7px * (1 - var(--intro-hud,0))));
 }
 body.intro-active :is(header,.tools,#timeline) { pointer-events:none; transition:none }
+body.intro-active #cayExit, #cayExit[inert] { display:none }
 #readLetter { gap:7px }
 @media(max-width:900px) {
   #readLetter { width:40px; padding:0 }
@@ -1250,7 +1251,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     const closeButton=byId("letterClose"), reviewButton=byId("readLetter"), soundButton=byId("introSound");
     const mote=byId("letterMote"), signature=byId("letterSignature"), stroke=byId("letterStroke");
     const lowMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const controls=[...document.querySelectorAll("header,.tools,#timeline,#view,#fallbackScene")];
+    const controls=[...document.querySelectorAll("header,.tools,#timeline,#view,#fallbackScene,#cayExit")];
     const duration=(value,fallback,min)=>Number.isFinite(value) ? Math.max(min,value) : fallback;
     const timings={
       envelope:lowMotion ? .75 : duration(cfg.envelopeDuration,3.6,.5),
