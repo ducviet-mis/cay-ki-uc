@@ -4426,7 +4426,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
 
   // Lấy nét ở tiền cảnh và khi mở ảnh hoặc thiệp, cùng màu phim theo mùa.
   const target=keep(new THREE.WebGLRenderTarget(2,2,{depthBuffer:true}));
-  const canSampleDepth=renderer.capabilities.isWebGL2 || renderer.extensions.has("WEBGL_depth_texture");
+  const canSampleDepth=!smallScreen && (renderer.capabilities.isWebGL2 || renderer.extensions.has("WEBGL_depth_texture"));
   if(canSampleDepth) {
     target.depthTexture=keep(new THREE.DepthTexture(2,2));
     target.depthTexture.type=THREE.UnsignedShortType;
@@ -4499,10 +4499,20 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       renderer.render(foreground,camera);
     }
   }
+  function renderPixelRatio(width,height) {
+    const nativeRatio=devicePixelRatio||1;
+    if(!smallScreen) return Math.min(nativeRatio,adaptive ? .86 : low ? 1.10 : 1.55);
+
+    // Giữ cảnh nét trên màn hình điện thoại và giới hạn số điểm ảnh GPU phải vẽ.
+    const maxRatio=adaptive ? 1.35 : 2;
+    const pixelBudget=adaptive ? 720_000 : effects ? 1_050_000 : 1_350_000;
+    const budgetRatio=Math.max(1,Math.sqrt(pixelBudget/(width*height)));
+    return Math.min(nativeRatio,maxRatio,budgetRatio);
+  }
   function resize() {
     const w=Math.max(1,innerWidth),h=Math.max(1,innerHeight);
-    const dpr=Math.min(devicePixelRatio||1,smallScreen ? (adaptive ? .75 : 1) : adaptive ? .86 : low ? 1.10 : 1.55,2);
-    const scale=low ? .67 : Math.min(dpr,1.22);
+    const dpr=renderPixelRatio(w,h);
+    const scale=smallScreen ? dpr : low ? .67 : Math.min(dpr,1.22);
     renderer.setPixelRatio(dpr);
     renderer.setSize(w,h);
     camera.aspect=w/h;
@@ -4989,7 +4999,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     if (!adaptive && CONFIG.quality==="auto" && story.needsWorld && !inspection && !document.hidden) {
       sample+=elapsed; frames++;
       if (sample>2.6) {
-        if (frames/sample<(smallScreen ? 43 : 45)) {
+        if (frames/sample<(smallScreen ? 28 : 45)) {
           low=adaptive=true; limited.forEach(({item,budget})=>{item.count=budget;}); setEffects(false); resize();
         }
         sample=frames=0;
