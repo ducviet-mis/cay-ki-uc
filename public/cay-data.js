@@ -70,7 +70,13 @@
     const wishes = await response.json();
     config.publicView = true;
     config.teacherName = slug.slice(-1);
-    config.intro.enabled = false;
+    config.intro.enabled = true;
+    config.intro.letter = {
+      greeting:"Kính gửi cô [TÊN CÔ],",
+      paragraphs:["Cảm ơn cô vì những ngày tháng cùng lớp. Mỗi tấm thiệp trên cây là một lời chúc chúng em gửi cô."],
+      closing:"Thương mến,",
+      signature:"Tập thể lớp"
+    };
     config.students = Array.from({length:Math.max(config.students.length,wishes.length)},(_,i)=>"Bạn " + (i+1));
     config.wishes = wishes.map(({wish},student)=>({student,text:wish}));
     config.bushes.items = [];
