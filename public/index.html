@@ -179,8 +179,15 @@ body.inspecting #treeDedication,
 #author { font-size: 13px; font-weight: 600; margin: 6px 0 }
 #wishDate, #photoDate { font-size: 11px; margin: 7px 0 0 }
 #next { margin-top: 15px; color: #423521; border-color: #8a704765; background: #f0ddba }
-#photoArea { position: absolute; top: 46%; left: 50%; transform: translate(-50%,-50%); width: min(82vw,680px,86vh); aspect-ratio: 1.39 }
-#photoMeta { position: absolute; top: 79%; left: 50%; transform: translateX(-50%); width: min(86vw,680px); text-align: center; max-height: 15vh; overflow: auto; text-shadow: 0 1px 6px #0a100c; overflow-wrap: anywhere }
+#photoArea { position: absolute; inset: 0; pointer-events: none }
+#photoArea[data-original] {
+  inset: max(70px,calc(env(safe-area-inset-top) + 62px)) max(12px,env(safe-area-inset-right))
+    max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));
+  display: grid; grid-template-rows: minmax(0,1fr) auto; justify-items: center; gap: 8px;
+}
+#fullPhoto { display: block; width: 100%; height: 100%; min-height: 0; object-fit: scale-down; pointer-events: auto }
+#photoMeta { position: absolute; top: 79%; left: 50%; transform: translateX(-50%); width: min(86vw,680px); text-align: center; max-height: 15vh; overflow: auto; text-shadow: 0 1px 6px #0a100c; overflow-wrap: anywhere; pointer-events: auto }
+#photoArea[data-original] #photoMeta { position: static; transform: none; width: min(100%,900px) }
 #caption { margin: 0; font: 600 clamp(21px,4vw,31px)/1.1 var(--font); white-space: pre-wrap }
 @media (max-width: 680px) {
   header { top: calc(max(12px,env(safe-area-inset-top)) + 119px); padding: 0 16px }
@@ -471,6 +478,8 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
 #fallbackPanel li button { width: 100%; justify-content: flex-start; white-space: normal; text-align: left }
 .fallback-album { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(145px,100%),1fr)); gap: 13px; margin-top: 8px }
 .fallback-album figure { min-width: 0; margin: 0 }
+.fallback-photo-link { display: block; border-radius: 6px }
+.fallback-photo-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px }
 .fallback-album :is(img,.fallback-photo) { border: 1px solid #e1ceaa; border-radius: 6px }
 .fallback-album img { display: block; width: auto; height: auto; max-width: 100%; max-height: 60vh; margin-inline: auto; padding: 4px; background: #fff7e8; object-fit: contain }
 .fallback-photo { width: 100%; aspect-ratio: 1.5 }
@@ -681,7 +690,10 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
 <div id="hint" class="glass" hidden></div>
 <div id="detail" role="dialog" aria-modal="true" aria-label="Kỷ niệm" hidden>
   <button class="button glass" id="closeDetail">Đóng</button>
-  <div id="photoArea" hidden></div><div id="photoMeta" hidden><p id="caption"></p><p id="photoDate"></p></div>
+  <div id="photoArea" hidden>
+    <img id="fullPhoto" alt="" decoding="async" crossorigin="anonymous" hidden>
+    <div id="photoMeta" hidden><p id="caption"></p><p id="photoDate"></p></div>
+  </div>
   <article id="paper" hidden><h2>Lời chúc</h2><p id="message"></p><p id="author"></p><p id="wishDate"></p><button class="button" id="next" hidden>Thiệp tiếp theo</button></article>
 </div>
 <p id="bushProgress" class="glass" role="status" hidden></p>
@@ -937,6 +949,13 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     button.append(dot);
   }
 
+  function classPhotoSource(photo,season) {
+    const images=Array.isArray(photo.images) ? photo.images.slice(0,4) : [];
+    const available=images.filter(source=>typeof source==="string" && source.trim());
+    const source=!photo.metaBySeason && available.length===1 ? available[0] : images[season];
+    return typeof source==="string" ? source.trim() : "";
+  }
+
   // Chế độ 2D vẫn mở được thư, lời chúc, tâm sự và ảnh từ CONFIG.
   function setupFallback(initialSeason,retry) {
     const root=byId("fallbackScene"), canvas=byId("fallbackCanvas"), dock=byId("fallbackDock");
@@ -1014,12 +1033,14 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
         const figure=document.createElement("figure"), label=`Ảnh ${i+1}`;
         const placeholder=make("div",label);
         placeholder.className="fallback-photo"; placeholder.style.backgroundColor=colors[season][4][0];
-        const images=photo.images??[], available=images.filter(src=>typeof src==="string" && src.trim());
-        const src=!photo.metaBySeason && available.length===1 ? available[0] : images[season];
+        const src=classPhotoSource(photo,season);
         if(src) {
+          const link=document.createElement("a");
+          link.className="fallback-photo-link"; link.href=src; link.target="_blank"; link.rel="noopener";
+          link.setAttribute("aria-label",`Mở ${label.toLowerCase()} kích thước gốc`);
           const image=document.createElement("img"); image.alt=label; image.loading="lazy";
-          image.addEventListener("error",()=>image.replaceWith(placeholder),{once:true});
-          figure.append(image); image.src=src;
+          image.addEventListener("error",()=>link.replaceWith(placeholder),{once:true});
+          link.append(image); figure.append(link); image.src=src;
         } else figure.append(placeholder);
         const meta=photo.metaBySeason?.[season] ?? photo;
         if(meta.caption) figure.append(make("p",meta.caption));
@@ -3160,12 +3181,14 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
             const scale=Math.min(1,longest/Math.max(image.naturalWidth,image.naturalHeight));
             const width=Math.max(1,Math.round(image.naturalWidth*scale));
             const height=Math.max(1,Math.round(image.naturalHeight*scale));
-            resolve(canvasTexture(width,height,(c,w,h) => {
+            const texture=canvasTexture(width,height,(c,w,h) => {
               c.fillStyle="#fff7e8"; c.fillRect(0,0,w,h);
               c.imageSmoothingQuality="high";
               c.drawImage(image,0,0,w,h);
               c.getImageData(0,0,1,1); // Giữ ảnh giữ chỗ nếu trình duyệt chặn quyền đọc ảnh.
-            }));
+            });
+            if (texture.generateMipmaps) texture.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),smallScreen ? 2 : 4);
+            resolve(texture);
           } catch (_) { resolve(null); }
         };
         image.onerror=() => resolve(null);
@@ -3225,8 +3248,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     const base=vec(x+Math.sin(place.yaw)*recline,ground+shelf+Math.cos(tilt)*h*.5,z+Math.cos(place.yaw)*recline);
     const frame=mesh(format.frame,photoEdge,group);
     const paperMount=mesh(format.paper,printPaper,group); paperMount.position.z=.017;
-    const images=Array.isArray(data.images) ? data.images.slice(0,4) : [];
-    const valid=images.filter(url => typeof url==="string" && url.trim());
+    const sources=names.map((_,season)=>classPhotoSource(data,season));
     const textures=names.map((_,s) => {
       const paint=(c,w,h)=>printPhoto(c,w,h,i,s), resolution=(smallScreen ? 256 : 384)/Math.max(format.photoWidth,format.photoHeight);
       const tex=canvasTexture(Math.round(format.photoWidth*resolution),Math.round(format.photoHeight*resolution),paint);
@@ -3238,15 +3260,14 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       });
       return tex;
     });
-    names.forEach((_,s) => {
-      const url=!data.metaBySeason && valid.length===1 ? valid[0] : images[s];
-      if (typeof url==="string" && url.trim()) loadPhoto(url.trim(),tex => {
+    sources.forEach((source,s) => {
+      if (source) loadPhoto(source,tex => {
         const previous=textures[s]; textures[s]=tex; assets.delete(previous); previous.dispose();
       });
     });
     const openingRatio=format.photoWidth/format.photoHeight;
     const uniforms={first:u(textures[0]),second:u(textures[1]),ratios:u(new THREE.Vector2(openingRatio,openingRatio)),
-      frameRatio:u(openingRatio),blend:u(0),shine:u(0),softness:u(0)};
+      frameRatio:u(openingRatio),blend:u(0),shine:u(0)};
     const mat=shader(`
       varying vec2 uvP;
       void main(){uvP=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}
@@ -3254,7 +3275,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       varying vec2 uvP;
       uniform sampler2D first,second;
       uniform vec2 ratios;
-      uniform float frameRatio,blend,shine,softness;
+      uniform float frameRatio,blend,shine;
       // Lót giấy vào khoảng trống khi đổi mùa hoặc ảnh dài hơn khung.
       vec3 printColor(sampler2D photo,vec2 uv,float ratio) {
         vec2 fit=max(vec2(1.),vec2(frameRatio/ratio,ratio/frameRatio));
@@ -3264,12 +3285,6 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       }
       void main(){
         vec3 c=mix(printColor(first,uvP,ratios.x),printColor(second,uvP,ratios.y),blend);
-        if(softness>.0001) {
-          vec2 d=vec2(softness,softness*1.47);
-          vec3 sideA=printColor(first,uvP+d,ratios.x)+printColor(first,uvP-d,ratios.x);
-          vec3 sideB=printColor(second,uvP+d,ratios.y)+printColor(second,uvP-d,ratios.y);
-          c=mix(c,mix(sideA,sideB,blend)*.5,.49);
-        }
         float line=(uvP.x+.26*uvP.y-(blend*1.62-.15))*7.;
         float sweep=exp(-line*line)*sin(blend*3.14159265);
         gl_FragColor=vec4(c+vec3(.09,.075,.055)*(sweep+shine),1.);
@@ -3277,7 +3292,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     `,uniforms);
     const hit=mesh(format.image,mat,group); hit.position.z=.019;
     photos.push(Object.assign(record(group,hit,base,i,"photo"),place,{
-      data,textures,uniforms,openingRatio,frame,paperMount,label:`Ảnh ${i+1}`
+      data,sources,textures,uniforms,openingRatio,frame,paperMount,label:`Ảnh ${i+1}`
     }));
   });
   const stands=new THREE.Group();
@@ -4149,7 +4164,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
   let moved=false, hover=null, pressedItem=null, inspection=null, tour=null, queue=[], lastFocus=null, home=null, pending=null;
   const look=new THREE.Matrix4(), turn=new THREE.Quaternion(), euler=new THREE.Euler(), down=vec(0,0,0), near=vec(0,0,0);
   const camUp=vec(0,0,0), camRight=vec(0,0,0), forward=vec(0,0,0), away=vec(0,0,0);
-  const photograph=document.getElementById("photoArea");
+  const photograph=$("photoArea"), fullPhoto=$("fullPhoto");
   function cameraStep(dt) {
     if (started && !story.state.review && age>3.1 && !reduce && clock-lastInput>4 && !pointers.size && !inspection && !tour && !reader.open && roster.hidden) goal.az+=dt*.028;
     const damping=1-Math.exp(-dt*(tour?5.6:7.6));
@@ -4228,8 +4243,6 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       if (photo) {
         item.uniforms.first.value=item.textures[a]; item.uniforms.second.value=item.textures[b];
         item.uniforms.blend.value=blend; item.uniforms.shine.value=item.hover*.66;
-        const distance=group.position.distanceTo(camera.position);
-        item.uniforms.softness.value=(1-focus)*((1-smooth(4.5,11.5,distance))*.005+smooth(24,37,distance)*.004);
       } else {
         const glimmer=!started ? Math.sin(reveal*Math.PI)*.70 : 0;
         const highlight=clamp(item.hover*.6+item.flash*.7*(.7+.3*Math.sin(clock*15))+glimmer,0,1);
@@ -4468,17 +4481,13 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       postU.soft.value=effects ? 4.4 : 2.8;
       postU.grading.value=effects ? U.fx.value : 0;
       renderer.render(post,screen);
-      if(inspection) {
-        renderer.clearDepth();
-        renderer.render(foreground,camera);
-      }
     } else {
       renderer.clear();
       renderer.render(scene,camera);
-      if(inspection) {
-        renderer.clearDepth();
-        renderer.render(foreground,camera);
-      }
+    }
+    if(inspection && fullPhoto.hidden) {
+      renderer.clearDepth();
+      renderer.render(foreground,camera);
     }
   }
   function resize() {
@@ -4517,7 +4526,12 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     photograph.hidden=!photo; paper.hidden=photo; paper.style.opacity=0; $("photoMeta").style.opacity=0; detail.hidden=false;
     detail.setAttribute("aria-label",photo ? item.label : `Lời chúc của ${item.name}`);
     if (photo) {
-      const {caption="",date=""}=item.data.metaBySeason?.[Math.round(mod(U.phase.value))%4] ?? item.data;
+      const season=Math.round(mod(U.phase.value))%4, source=item.sources[season];
+      if (source) {
+        fullPhoto.alt=item.label;
+        fullPhoto.src=source;
+      }
+      const {caption="",date=""}=item.data.metaBySeason?.[season] ?? item.data;
       set("caption",caption); set("photoDate",date);
       $("caption").hidden=!caption.trim(); $("photoDate").hidden=!date.trim();
       $("photoMeta").hidden=!(caption.trim()||date.trim());
@@ -4531,9 +4545,15 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     }
     $("closeDetail").focus({preventScroll:true});
   }
+  function clearFullPhoto() {
+    fullPhoto.hidden=true;
+    fullPhoto.removeAttribute("src");
+    photograph.removeAttribute("data-original");
+  }
   function closeDetail(leaveQueue=true) {
     if (!inspection) return;
     if (leaveQueue) { queue=[]; pending=null; }
+    clearFullPhoto();
     inspection.open=false; detail.hidden=true; touchScene();
   }
   function moveInspection(dt) {
@@ -4544,6 +4564,11 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     const show=smooth(.58,.96,v.position);
     paper.style.opacity=show; paper.style.transform=`translateY(${(1-show)*14}px) scale(${.96+show*.04})`;
     $("photoMeta").style.opacity=show;
+    // Ảnh gốc chỉ thay khung 3D sau khi đã tải xong và kết thúc chuyển động.
+    if (v.open && v.item.type==="photo" && v.progress===1 && fullPhoto.hidden && fullPhoto.complete && fullPhoto.naturalWidth) {
+      photograph.setAttribute("data-original","");
+      fullPhoto.hidden=false;
+    }
     if (!v.open && !v.progress) {
       objects.add(v.item.group);
       inspection=null;
@@ -4913,6 +4938,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     if(reader.open && readerReturn===returnFromBush) reader.close();
     if(inspection) objects.add(inspection.item.group);
     inspection=pending=tour=null; home=null; detail.hidden=true;
+    clearFullPhoto();
     document.body.classList.remove("inspecting");
     setRoster(false); showHover(null);
     story.onContextLost();
