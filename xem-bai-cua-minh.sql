@@ -38,7 +38,10 @@ create policy cay_submission_photo_read_owner on storage.objects
   for select to authenticated using (
     bucket_id = 'cay-ki-uc'
     and name like 'submission/%'
-    and storage.allow_only_operation('storage.object.get_authenticated')
+    and storage.allow_any_operation(array[
+      'storage.object.get_authenticated',
+      'object.get_authenticated_info'
+    ])
     and cay_private.owns_submitted_photo(name)
   );
 
