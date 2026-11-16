@@ -16,7 +16,10 @@
     return studentClient;
   }
 
-  async function signIn(client) {
+  async function signIn(client, messageTarget = "") {
+    const key = "cay-student-next-message";
+    if (messageTarget) sessionStorage.setItem(key, messageTarget);
+    else sessionStorage.removeItem(key);
     const redirectTo = new URL("./gui-bai.html", location.href).href;
     const {error} = await client.auth.signInWithOAuth({
       provider: "google", options: {redirectTo, queryParams: {prompt: "select_account"}}
@@ -33,6 +36,19 @@
 
   function returnToLogin() {
     location.replace("./?dang-nhap=1");
+  }
+
+  async function restoreAccount(client) {
+    const {data:{session}} = await client.auth.getSession();
+    if (!session) return null;
+    client.auth.onAuthStateChange((event, next) => {
+      if (event === "SIGNED_OUT" || (next && next.user.id !== session.user.id)) returnToLogin();
+    });
+    showAccount(session.user.email ?? "Tài khoản Google");
+    const {data, error} = await client.rpc("cay_get_student_account");
+    const profile = error ? null : data?.[0];
+    if (profile) showAccount(profile.student_name);
+    return {profile};
   }
 
   function bindSignOut(client) {
@@ -52,5 +68,5 @@
     });
   }
 
-  window.CayStudentSession = {client, signIn, showAccount, bindSignOut, returnToLogin};
+  window.CayStudentSession = {client, signIn, restoreAccount, showAccount, bindSignOut, returnToLogin};
 })();

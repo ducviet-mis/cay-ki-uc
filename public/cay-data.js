@@ -555,7 +555,7 @@
     return true;
   }
 
-  function setupStudentEntry(settings, showRoles) {
+  function setupStudentEntry(settings, showRoles, publicSlug) {
     const student = window.CayStudentSession;
     const studentClient = student?.client(settings);
     const studentRole = $("cayRoleStudent"), teacherRole = $("cayRoleTeacher");
@@ -563,7 +563,6 @@
     const google = $("cayHomeGoogle"), link = $("cayStudentLink");
     const status = $("cayHomeStudentStatus");
     const hint = $("cayLoginHint");
-    let accountId;
 
     if (showRoles) {
       function selectRole(isStudent) {
@@ -572,7 +571,7 @@
         studentPanel.hidden = !isStudent;
         teacherForm.hidden = isStudent;
         hint.textContent = isStudent
-          ? "Đăng nhập để gửi lời chúc và tâm sự."
+          ? "Đăng nhập để vào cây của thầy cô."
           : "Thầy cô nhập mã được gửi riêng để mở cây.";
       }
       $("cayRolePicker").hidden = false;
@@ -594,23 +593,22 @@
 
     if (!studentClient) return;
     student.bindSignOut(studentClient);
-    studentClient.auth.onAuthStateChange((event, session) => {
-      if (accountId && (event === "SIGNED_OUT" || (session && session.user.id !== accountId))) {
-        student.returnToLogin();
-      }
-    });
     async function restoreAccount() {
       try {
-        const {data:{session}} = await studentClient.auth.getSession();
-        if (!session) return;
-        accountId = session.user.id;
-        student.showAccount(session.user.email ?? "Tài khoản Google");
+        const account = await student.restoreAccount(studentClient);
+        if (!account) return;
         link.hidden = false;
         google.hidden = true;
-        const [profile] = result(await studentClient.rpc("cay_get_student_account"));
-        if (profile) student.showAccount(profile.student_name);
+        if (!account.profile) return;
+        link.href = "./loi-chuc.html";
+        link.textContent = "Vào các cây";
+        if (/^co-[1-4]$/.test(publicSlug)) {
+          const addMessage = $("cayAddMessage");
+          addMessage.href = "./gui-bai.html?co=" + publicSlug;
+          addMessage.hidden = false;
+        }
       } catch {
-        if (accountId) status.textContent = "Bạn có thể mở trang học sinh để tải lại thông tin.";
+        status.textContent = "Bạn thử tải lại trang để kiểm tra tài khoản nhé.";
       } finally {
         google.disabled = false;
       }
@@ -631,7 +629,7 @@
     $("cayLoginTitle").textContent = admin ? "Quản lý " + siteName : siteName;
     if (admin) $("cayLoginHint").textContent = "Nhập mã quản lý để thêm ảnh lớp và chỉnh nội dung.";
     $("cayAdminLink").hidden = admin;
-    if (!admin) setupStudentEntry(settings, receipt === null);
+    if (!admin) setupStudentEntry(settings, receipt === null, receipt === null ? publicSlug : "");
     $("cayPasswordLabel").textContent = admin ? "Mã quản lý" : "Mã của cô giáo";
     $("cayLoginSubmit").textContent = admin ? "Mở trang quản lý" : "Mở cây";
     password.inputMode = "numeric";
@@ -640,13 +638,13 @@
       $("cayLoginTitle").textContent = "Bài của mình";
       const hint = $("cayLoginHint"), back = $("cayPublicLink");
       form.hidden = true;
-      back.href = "./gui-bai.html";
+      back.href = "./gui-bai.html?viet=1";
       back.textContent = "Về biểu mẫu";
       hint.textContent = "Đang mở bài gửi…";
       try {
         const validReceipt = receipt === "mine" || /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(receipt);
         if (validReceipt && await loadOwnSubmission(config,receipt,settings)) {
-          revealPublicTree("Về biểu mẫu","./gui-bai.html");
+          revealPublicTree("Về biểu mẫu","./gui-bai.html?viet=1");
           return true;
         }
         hint.textContent = "Chưa tìm thấy bài. Bạn đăng nhập bằng Google đã dùng để gửi bài rồi mở lại từ mục Bài đã gửi nhé.";
