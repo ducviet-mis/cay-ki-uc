@@ -23,11 +23,29 @@
     ].map(key => byKey.get(key.join("/"))).find(Boolean)));
   }
 
-  async function galleryUrls(photos) {
+  async function galleryPhotos(gallery, slug, photoClient) {
+    const photos = photoRows(gallery,slug);
     const paths = [...new Set(photos.flat().filter(Boolean).map(row => row.object_path))];
-    if (!paths.length) return new Map();
-    const signed = result(await client.storage.from(bucketName).createSignedUrls(paths, 3600));
-    return new Map(signed.filter(item => item.signedUrl).map(item => [item.path,item.signedUrl]));
+    const signed = paths.length
+      ? result(await photoClient.storage.from(bucketName).createSignedUrls(paths, 3600))
+      : [];
+    const urls = new Map(signed.filter(item => item.signedUrl).map(item => [item.path,item.signedUrl]));
+    return photos.map(rows => ({
+      images:rows.map(row => urls.get(row?.object_path) ?? null),
+      metaBySeason:rows.map(row => ({caption:row?.caption ?? "",date:row?.photo_date ?? ""})),
+      caption:rows.find(Boolean)?.caption ?? "",
+      date:rows.find(Boolean)?.photo_date ?? ""
+    }));
+  }
+
+  async function loadSharedGallery(slug, url, publishableKey) {
+    if (!window.supabase) return [];
+    const guest = window.supabase.createClient(url,publishableKey,{
+      auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}
+    });
+    const gallery = result(await guest.from("cay_gallery")
+      .select("slot,season,object_path,caption,photo_date").is("teacher_slug",null));
+    return galleryPhotos(gallery,slug,guest);
   }
 
   async function loadTree(config, slug) {
@@ -39,8 +57,7 @@
     ]);
     const [teacher, roster, messages, gallery] = responses.map(result);
     if (!teacher) throw new Error("Chưa mở được cây. Cô thử nhập lại mã nhé.");
-    const photos = photoRows(gallery,slug);
-    const urls = await galleryUrls(photos);
+    const photos = await galleryPhotos(gallery,slug,client);
     const byStudent = new Map(messages.map(row => [row.student_number,row]));
     config.teacherName = teacher.name;
     config.className = teacher.class_name;
@@ -54,18 +71,16 @@
       const message = byStudent.get(student.number);
       return {student:index,story:message?.story ?? "",date:message?.note_date ?? "",photos:message?.photo_paths ?? []};
     });
-    config.photos = photos.map(rows => ({
-      images:rows.map(row => urls.get(row?.object_path) ?? null),
-      metaBySeason:rows.map(row => ({caption:row?.caption ?? "",date:row?.photo_date ?? ""})),
-      caption:rows.find(Boolean)?.caption ?? "",
-      date:rows.find(Boolean)?.photo_date ?? ""
-    }));
+    config.photos = photos;
   }
 
   async function loadPublicTree(config, slug, {url,publishableKey}) {
     const endpoint = new URL("/rest/v1/cay_public_wishes",url);
     endpoint.search = new URLSearchParams({select:"wish",teacher_slug:"eq." + slug,order:"wish.asc"});
-    const response = await fetch(endpoint,{headers:{apikey:publishableKey}});
+    const [response, photos] = await Promise.all([
+      fetch(endpoint,{headers:{apikey:publishableKey}}),
+      loadSharedGallery(slug,url,publishableKey).catch(() => [])
+    ]);
     if (!response.ok) throw new Error("Chưa mở được cây công khai. Hãy tải lại trang để thử lại.");
     const wishes = await response.json();
     config.publicView = true;
@@ -80,6 +95,7 @@
     config.students = Array.from({length:Math.max(config.students.length,wishes.length)},(_,i)=>"Bạn " + (i+1));
     config.wishes = wishes.map(({wish},student)=>({student,text:wish}));
     config.bushes.items = [];
+    if (photos.length) config.photos = photos;
   }
 
   function photoFile(file) {
