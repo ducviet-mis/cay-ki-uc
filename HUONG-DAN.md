@@ -18,7 +18,7 @@ Người quản lý bấm **Trang quản lý** hoặc mở địa chỉ website 
 
 ## Đưa nội dung lên cây
 
-Mục **Xem lời chúc** trên trang chủ cho khách đọc nội dung cột `loi_chuc` mà không cần mã. Tâm sự và ảnh chỉ xem được khi mở cây bằng mã tương ứng.
+Mục **Xem lời chúc** trên trang chủ cho khách chọn cây 3D và đọc thiệp từ cột `loi_chuc` mà không cần mã. Khi chạm vào tâm sự, khách thấy yêu cầu nhập mã của cô. Tâm sự, thư riêng và ảnh chỉ xem được khi mở cây bằng mã tương ứng.
 
 - **Tên cô và thư mở đầu**. Điền tên dùng sau chữ “Cô”, tên lớp và thư riêng của từng cô. Xuống hai dòng để tách đoạn.
 - **Danh sách lớp**. Mỗi dòng gồm mã số, dấu phẩy và tên. Giữ mã số của học sinh khi sửa tên vì bài gửi được nối theo mã này.

@@ -653,10 +653,11 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
   </div>
   <div id="bushScroll" tabindex="0" aria-label="Nội dung tâm sự">
     <p id="bushText"></p>
+    <p id="bushUnlock" hidden><a class="button" href="./">Nhập mã của cô</a></p>
     <div id="cayStoryPhotos" hidden></div>
     <footer><p id="bushAuthor"></p><time id="bushDate" hidden></time></footer>
   </div>
-  <nav class="bush-reader-nav" aria-label="Đọc tâm sự">
+  <nav id="bushNav" class="bush-reader-nav" aria-label="Đọc tâm sự">
     <button class="button" id="bushPrev">Trước</button>
     <button class="button" id="bushNext">Sau</button>
   </nav>
@@ -708,6 +709,13 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
 (async () => {
   "use strict";
   if (!await window.CayData.start(CONFIG)) return;
+  if (CONFIG.publicView) {
+    document.getElementById("readLetter").hidden=true;
+    document.getElementById("fallbackPhotos").hidden=true;
+    document.getElementById("bushNav").hidden=true;
+    document.getElementById("bushUnlock").hidden=false;
+    document.getElementById("bushAuthor").hidden=true;
+  }
   const STAGES = Object.freeze({
     ENVELOPE:"ENVELOPE", LETTER:"LETTER", SEED:"SEED", GROW:"GROW", REVEAL:"REVEAL", EXPLORE:"EXPLORE"
   });
@@ -844,11 +852,11 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       else if(entry.index>index) { readerFollowing=entry.index; break; }
     }
     if(item.hasStory) { readStories.add(index); updateBushProgress(); }
-    byId("bushHeading").textContent=`${String(bushConfig.heading??"").trim()||"Tâm sự của"} ${item.name}`;
-    byId("bushText").textContent=item.hasStory ? item.text : "Chưa có tâm sự";
+    byId("bushHeading").textContent=CONFIG.publicView ? "Tâm sự riêng tư" : `${String(bushConfig.heading??"").trim()||"Tâm sự của"} ${item.name}`;
+    byId("bushText").textContent=CONFIG.publicView ? "Phần này được khóa. Cô nhập mã riêng để đọc tâm sự." : item.hasStory ? item.text : "Chưa có tâm sự";
     byId("bushText").hidden=item.hasStory && !item.text.trim();
     showStoryPhotos(item.photos);
-    byId("bushText").classList.toggle("missing",!item.hasStory);
+    byId("bushText").classList.toggle("missing",!CONFIG.publicView && !item.hasStory);
     byId("bushAuthor").textContent=item.name;
     byId("bushDate").textContent=item.hasStory ? item.date : "";
     byId("bushDate").hidden=!item.hasStory || !item.date;
@@ -1586,7 +1594,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
   }
 
   byId("title").textContent=`Tri ân Cô ${CONFIG.teacherName}`;
-  byId("classTitle").textContent=`Tập thể lớp ${CONFIG.className}`;
+  byId("classTitle").textContent=CONFIG.publicView ? "Chạm vào thiệp để đọc lời chúc" : `Tập thể lớp ${CONFIG.className}`;
   setupIntro(bootScene);
 
   function bootScene(story) {

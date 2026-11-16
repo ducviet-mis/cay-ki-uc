@@ -62,6 +62,21 @@
     }));
   }
 
+  async function loadPublicTree(config, slug, {url,publishableKey}) {
+    const endpoint = new URL("/rest/v1/cay_public_wishes",url);
+    endpoint.search = new URLSearchParams({select:"wish",teacher_slug:"eq." + slug,order:"wish.asc"});
+    const response = await fetch(endpoint,{headers:{apikey:publishableKey}});
+    if (!response.ok) throw new Error("Chưa mở được cây công khai. Hãy tải lại trang để thử lại.");
+    const wishes = await response.json();
+    config.publicView = true;
+    config.teacherName = slug.slice(-1);
+    config.intro.enabled = false;
+    config.students = Array.from({length:Math.max(config.students.length,wishes.length)},(_,i)=>"Bạn " + (i+1));
+    config.wishes = wishes.map(({wish},student)=>({student,text:wish}));
+    config.bushes.items = [];
+    config.photos = [];
+  }
+
   function photoFile(file) {
     if (!extensions[file?.type] || !file.size || file.size > 10485760) {
       throw new Error("Chọn ảnh JPG, PNG hoặc WebP, tối đa 10 MB mỗi ảnh.");
@@ -356,6 +371,7 @@
   async function start(config) {
     const query = new URLSearchParams(location.search);
     const admin = query.get("admin") === "1";
+    const publicSlug = query.get("xem") ?? "";
     const form = $("cayLoginForm");
     const password = $("cayPassword");
     const status = $("cayLoginStatus");
@@ -371,6 +387,21 @@
       status.textContent = "Trang đang chờ cấu hình kết nối Supabase.";
       $("cayLoginSubmit").disabled = true;
       return false;
+    }
+    if (!admin && /^co-[1-4]$/.test(publicSlug)) {
+      status.textContent = "Đang mở cây…";
+      try {
+        await loadPublicTree(config,publicSlug,settings);
+        $("cayPortal").hidden = true;
+        document.body.removeAttribute("data-cay-locked");
+        const exit = $("cayExit");
+        exit.textContent = "Chọn cây khác";
+        exit.hidden = false;
+        exit.addEventListener("click",() => location.assign("./loi-chuc.html"));
+        return true;
+      } catch {
+        status.textContent = "Chưa mở được cây công khai. Hãy tải lại trang để thử lại.";
+      }
     }
     if (!window.supabase) {
       status.textContent = "Chưa tải được phần đăng nhập. Tải lại trang để thử lại.";

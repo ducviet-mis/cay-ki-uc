@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <title>Lời chúc · Cây Kí Ức</title>
+  <title>Chọn cây · Cây Kí Ức</title>
   <style>
     :root { color-scheme: light; font-family: "Source Sans 3", system-ui, sans-serif; }
     * { box-sizing: border-box; }
@@ -12,89 +12,31 @@
     header { background: #263a30; color: #fff7e3; padding: 22px 22px 42px; }
     header > div, main { max-width: 780px; margin-inline: auto; }
     header a { color: #f0d8a1; text-underline-offset: 4px; }
-    h1 { font-size: clamp(2rem, 7vw, 3.7rem); font-family: Georgia, serif; font-weight: 500; margin: 32px 0 0; line-height: 1.15; }
+    h1 { font: 500 clamp(2rem, 7vw, 3.7rem)/1.15 "Cormorant Garamond", Georgia, serif; margin: 32px 0 0; }
     main { padding: 24px 18px 52px; }
-    fieldset { border: 0; margin: 0 0 18px; padding: 0; }
-    legend { margin-bottom: 10px; font-weight: 650; }
-    .choices { display: flex; flex-wrap: wrap; gap: 8px; }
-    .choices label {
-      min-width: 72px; padding: 9px 15px; text-align: center; border: 1px solid #a39375;
-      border-radius: 999px; background: #fffaf0; color: #344337; cursor: pointer;
+    main > p { margin: 0 0 18px; }
+    nav { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,160px),1fr)); gap: 12px; }
+    nav a {
+      padding: 15px 18px; text-align: center; border: 1px solid #a39375; border-radius: 8px;
+      background: #fffaf0; color: #344337; font-weight: 650; text-decoration: none;
     }
-    .choices input { position: absolute; width: 1px; height: 1px; opacity: 0; }
-    .choices label:has(:checked) { background: #37503f; border-color: #37503f; color: #fff7e3; }
-    .choices label:has(:focus-visible) { outline: 2px solid #253f34; outline-offset: 3px; }
-    #status { margin: 0; color: #625542; }
-    #status:empty { display: none; }
-    #wishes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 14px; padding: 0; margin: 0; list-style: none; }
-    #wishes li {
-      padding: clamp(18px, 4vw, 26px); background: #fffaf0; border: 1px solid #dfd1b2;
-      border-radius: 10px; line-height: 1.62; white-space: pre-wrap; overflow-wrap: anywhere;
-    }
-    #retry { margin-top: 14px; padding: 8px 14px; font: inherit; color: #fff7e3; background: #37503f; border: 0; border-radius: 6px; cursor: pointer; }
+    nav a:hover { background: #37503f; border-color: #37503f; color: #fff7e3; }
+    nav a:focus-visible { outline: 2px solid #253f34; outline-offset: 3px; }
   </style>
 </head>
 <body>
   <header><div>
     <a href="./">Quay về Cây Kí Ức</a>
-    <h1>Lời chúc gửi các cô</h1>
+    <h1>Chọn cây để xem lời chúc</h1>
   </div></header>
   <main>
-    <fieldset id="teacherChoice">
-      <legend>Chọn cây của cô</legend>
-      <div class="choices">
-        <label><input type="radio" name="teacher" value="co-1" checked>Cô 1</label>
-        <label><input type="radio" name="teacher" value="co-2">Cô 2</label>
-        <label><input type="radio" name="teacher" value="co-3">Cô 3</label>
-        <label><input type="radio" name="teacher" value="co-4">Cô 4</label>
-      </div>
-    </fieldset>
-    <p id="status" role="status"></p>
-    <button id="retry" type="button" hidden>Thử lại</button>
-    <ul id="wishes" aria-label="Lời chúc"></ul>
+    <p>Vào cây và chạm vào các tấm thiệp trên cành để đọc.</p>
+    <nav aria-label="Chọn cây của cô">
+      <a href="./?xem=co-1">Cây của Cô 1</a>
+      <a href="./?xem=co-2">Cây của Cô 2</a>
+      <a href="./?xem=co-3">Cây của Cô 3</a>
+      <a href="./?xem=co-4">Cây của Cô 4</a>
+    </nav>
   </main>
-  <script src="./cay-config.js"></script>
-  <script>
-    "use strict";
-    const status = document.getElementById("status");
-    const wishes = document.getElementById("wishes");
-    const retry = document.getElementById("retry");
-    let activeRequest;
-
-    async function loadWishes() {
-      activeRequest?.abort();
-      const controller = new AbortController();
-      activeRequest = controller;
-      const teacher = document.querySelector('input[name="teacher"]:checked').value;
-      wishes.replaceChildren();
-      retry.hidden = true;
-      status.textContent = "Đang tải lời chúc…";
-
-      try {
-        const {url,publishableKey} = window.CAY_SUPABASE;
-        const endpoint = new URL("/rest/v1/cay_public_wishes",url);
-        endpoint.search = new URLSearchParams({select:"wish",teacher_slug:"eq." + teacher,order:"wish.asc"});
-        const response = await fetch(endpoint,{headers:{apikey:publishableKey},signal:controller.signal});
-        if (!response.ok) throw new Error("Could not load wishes");
-        const rows = await response.json();
-        if (controller.signal.aborted) return;
-        const list = document.createDocumentFragment();
-        for (const {wish} of rows) {
-          const item = document.createElement("li");
-          item.textContent = wish;
-          list.append(item);
-        }
-        wishes.replaceChildren(list);
-        status.textContent = rows.length ? "" : "Cây này chưa có lời chúc.";
-      } catch (error) {
-        if (controller.signal.aborted) return;
-        status.textContent = "Chưa tải được lời chúc.";
-        retry.hidden = false;
-      }
-    }
-    document.getElementById("teacherChoice").addEventListener("change",loadWishes);
-    retry.addEventListener("click",loadWishes);
-    loadWishes();
-  </script>
 </body>
 </html>
