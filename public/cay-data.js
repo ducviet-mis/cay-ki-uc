@@ -334,7 +334,7 @@
   async function unlock(passcode, admin) {
     const code = passcode.replace(/[\s-]/g,"").toUpperCase();
     const invalidCode = admin ? "Mã quản lý chưa đúng." : "Mã truy cập chưa đúng. Cô kiểm tra lại mã được gửi nhé.";
-    const format = admin ? /^[0-9A-F]{32}$/ : /^[0-9A-F]{20}$/;
+    const format = admin ? /^(?:[0-9]{7}|[0-9A-F]{32})$/ : /^(?:[0-9]{6}|[0-9A-F]{20})$/;
     if (!format.test(code)) throw new Error(invalidCode);
     if (!guestReady) {
       const {error} = await client.auth.signInAnonymously();
@@ -347,6 +347,7 @@
       guestReady = true;
     }
     const {data,error} = await client.rpc(admin ? "cay_unlock_admin" : "cay_unlock_tree",{p_code:code});
+    if (error?.code === "PT429") throw new Error("Đã thử quá nhiều lần. Vui lòng đợi 10 phút rồi thử lại.");
     if (error) throw new Error(admin ? "Chưa mở được trang quản lý. Vui lòng thử lại." : "Chưa mở được cây. Cô thử lại sau ít phút nhé.");
     if (!data) throw new Error(invalidCode);
     return data;
@@ -364,6 +365,7 @@
     $("cayAdminLink").hidden = admin;
     $("cayPasswordLabel").textContent = admin ? "Mã quản lý" : "Mã truy cập";
     $("cayLoginSubmit").textContent = admin ? "Mở trang quản lý" : "Mở cây";
+    password.inputMode = "numeric";
     password.maxLength = 60;
     if (!settings?.url || !settings.publishableKey) {
       status.textContent = "Trang đang chờ cấu hình kết nối Supabase.";

@@ -10,7 +10,7 @@ Người quản lý bấm **Trang quản lý** hoặc mở địa chỉ website 
 
 ## Cài đặt và đưa web lên hosting
 
-1. Nếu chuyển sang project Supabase mới, chạy lần lượt `cay-ki-uc.sql`, `ma-truy-cap.sql` và `ma-quan-ly.sql` trong SQL Editor. Cập nhật URL và **Publishable key** của project mới trong `cay-config.js`.
+1. Nếu chuyển sang project Supabase mới, chạy lần lượt `cay-ki-uc.sql`, `ma-truy-cap.sql`, `ma-quan-ly.sql` và `ma-ngan.sql` trong SQL Editor. Cập nhật URL và **Publishable key** của project mới trong `public/cay-config.js`.
 2. Trong Supabase **Authentication → Sign In / Providers**, bật **Allow anonymous sign-ins** để web tạo phiên khách. Phiên khách chỉ đọc được dữ liệu cây sau khi xác minh mã.
 3. Chạy `tao-ma-cho-bon-co.sql` nếu các hồ sơ chưa có mã. Chép lại mã vừa cấp từ kết quả và gửi riêng từng cô. Lệnh giữ các mã đã cấp.
 4. Chạy `tao-ma-quan-ly.sql` nếu project chưa có mã quản lý. Chép lại mã được trả về và giữ riêng. Lệnh giữ mã đã cấp.
