@@ -519,7 +519,10 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
       <button id="cayLoginSubmit" type="submit" disabled>Mở cây</button>
     </form>
     <p id="cayLoginStatus" class="cay-status" role="status"></p>
-    <a id="cayAdminLink" href="?admin=1" hidden>Trang quản lý</a>
+    <nav class="cay-row" aria-label="Lối vào khác">
+      <a class="cay-link" href="./loi-chuc.html">Xem lời chúc</a>
+      <a id="cayAdminLink" href="?admin=1" hidden>Trang quản lý</a>
+    </nav>
   </section>
   <section id="cayAdmin" class="cay-sheet" hidden aria-labelledby="cayAdminTitle">
     <header><h1 id="cayAdminTitle">Quản lý Cây Kí Ức</h1><button id="cayAdminSignout">Đăng xuất</button></header>

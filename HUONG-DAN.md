@@ -10,13 +10,15 @@ Người quản lý bấm **Trang quản lý** hoặc mở địa chỉ website 
 
 ## Cài đặt và đưa web lên hosting
 
-1. Nếu chuyển sang project Supabase mới, chạy lần lượt `cay-ki-uc.sql`, `ma-truy-cap.sql`, `ma-quan-ly.sql` và `ma-ngan.sql` trong SQL Editor. Cập nhật URL và **Publishable key** của project mới trong `public/cay-config.js`.
+1. Nếu chuyển sang project Supabase mới, chạy lần lượt `cay-ki-uc.sql`, `ma-truy-cap.sql`, `ma-quan-ly.sql`, `ma-ngan.sql` và `loi-chuc-cong-khai.sql` trong SQL Editor. Cập nhật URL và **Publishable key** của project mới trong `public/cay-config.js`.
 2. Trong Supabase **Authentication → Sign In / Providers**, bật **Allow anonymous sign-ins** để web tạo phiên khách. Phiên khách chỉ đọc được dữ liệu cây sau khi xác minh mã.
 3. Chạy `tao-ma-cho-bon-co.sql` nếu các hồ sơ chưa có mã. Chép lại mã vừa cấp từ kết quả và gửi riêng từng cô. Lệnh giữ các mã đã cấp.
 4. Chạy `tao-ma-quan-ly.sql` nếu project chưa có mã quản lý. Chép lại mã được trả về và giữ riêng. Lệnh giữ mã đã cấp.
 5. Đưa `index.html`, `cay-config.js`, `cay-data.js` và `cay-portal.css` vào cùng một thư mục trên hosting HTTPS. Gửi cùng địa chỉ website và mã tương ứng cho từng cô.
 
 ## Đưa nội dung lên cây
+
+Mục **Xem lời chúc** trên trang chủ cho khách đọc nội dung cột `loi_chuc` mà không cần mã. Tâm sự và ảnh chỉ xem được khi mở cây bằng mã tương ứng.
 
 - **Tên cô và thư mở đầu**. Điền tên dùng sau chữ “Cô”, tên lớp và thư riêng của từng cô. Xuống hai dòng để tách đoạn.
 - **Danh sách lớp**. Mỗi dòng gồm mã số, dấu phẩy và tên. Giữ mã số của học sinh khi sửa tên vì bài gửi được nối theo mã này.
