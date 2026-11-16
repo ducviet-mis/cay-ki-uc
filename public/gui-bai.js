@@ -9,6 +9,9 @@
   const historyList = $("studentHistoryList"), historyStatus = $("studentHistoryStatus");
   const teacher = form.elements.namedItem("teacher");
   const query = new URLSearchParams(location.search);
+  const messageTargetKey = "cay-student-next-message";
+  const isTeacher = value => /^co-[1-4]$/.test(value ?? "");
+  let messageTarget = isTeacher(query.get("co")) ? query.get("co") : query.get("viet") === "1" ? "viet" : "";
   const settings = window.CAY_SUPABASE;
   const imageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
   const dateFormat = new Intl.DateTimeFormat("vi-VN", {
@@ -35,11 +38,6 @@
     return data;
   }
 
-  function applyTeacherPreset() {
-    const preset = query.get("co") || sessionStorage.getItem("cay-student-teacher");
-    if (/^co-[1-4]$/.test(preset ?? "")) teacher.value = preset;
-  }
-
   function showLogin(hint = "") {
     accountId = null;
     $("studentLogin").hidden = false;
@@ -49,12 +47,21 @@
     message(status, hint, hint ? "error" : "");
   }
 
-  function setProfile({student_number, student_name}) {
+  async function enterStudentPage({student_number, student_name}) {
+    if (!messageTarget) {
+      location.replace("./loi-chuc.html");
+      return;
+    }
     student.showAccount(student_number + ". " + student_name);
     claim.hidden = true;
     form.hidden = $("studentHistory").hidden = false;
-    applyTeacherPreset();
+    if (isTeacher(messageTarget)) {
+      teacher.value = messageTarget;
+      $("studentBack").href = "./?xem=" + messageTarget;
+      $("studentBack").textContent = "Quay lại cây";
+    }
     message(status, "");
+    await refreshHistory();
   }
 
   async function refreshHistory() {
@@ -96,7 +103,11 @@
   async function start() {
     const code = query.get("code");
     if (code || query.has("error")) {
-      history.replaceState(null, "", location.pathname);
+      const pending = sessionStorage.getItem(messageTargetKey);
+      sessionStorage.removeItem(messageTargetKey);
+      if (pending === "viet" || isTeacher(pending)) messageTarget = pending;
+      const destination = isTeacher(messageTarget) ? "?co=" + messageTarget : messageTarget ? "?viet=1" : "";
+      history.replaceState(null, "", location.pathname + destination);
       if (!code) return showLogin("Google chưa xác nhận đăng nhập. Bạn thử lại bằng Chrome hoặc Safari nhé.");
       const {error} = await client.auth.exchangeCodeForSession(code);
       if (error) return showLogin("Chưa hoàn tất đăng nhập Google. Bạn bấm đăng nhập lại nhé.");
@@ -108,17 +119,14 @@
     student.showAccount(session.user.email ?? "Tài khoản Google");
     const [profile] = await rpc("cay_get_student_account");
     if (!profile) return loadRoster();
-    setProfile(profile);
-    await refreshHistory();
+    await enterStudentPage(profile);
   }
 
   google.addEventListener("click", async () => {
     google.disabled = true;
     message(status, "Đang mở Google…");
     try {
-      const preset = query.get("co");
-      if (/^co-[1-4]$/.test(preset ?? "")) sessionStorage.setItem("cay-student-teacher", preset);
-      await student.signIn(client);
+      await student.signIn(client, messageTarget);
     } catch {
       showLogin("Chưa mở được đăng nhập Google. Bạn thử lại sau nhé.");
     }
@@ -141,15 +149,13 @@
     claimButton.disabled = true;
     try {
       const [profile] = await rpc("cay_claim_student_account", {p_student_number: Number(choice.value)});
-      setProfile(profile);
-      await refreshHistory();
+      await enterStudentPage(profile);
     } catch (error) {
       if (error.code === "PT409") {
         try {
           const [profile] = await rpc("cay_get_student_account");
           if (profile) {
-            setProfile(profile);
-            await refreshHistory();
+            await enterStudentPage(profile);
             return;
           }
           await loadRoster();

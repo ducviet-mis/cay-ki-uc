@@ -6,8 +6,11 @@
   <meta name="robots" content="noindex">
   <title>Chọn cây · Cây Kí Ức</title>
   <link rel="stylesheet" href="./cay-portal.css">
+  <link rel="stylesheet" href="./student-account.css">
   <script src="./cay-presentation.js"></script>
   <script defer src="./cay-config.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.3/dist/umd/supabase.min.js"></script>
+  <script defer src="./student-session.js?v=tree-first"></script>
 </head>
 <body class="cay-chooser cay-surface" data-cay-surface>
   <main class="cay-choose">
@@ -21,6 +24,23 @@
       <a href="./?xem=co-4" data-cay-teacher="co-4" data-cay-teacher-prefix="Cây của " style="--tile:3">Cây của Cô Nguyễn Thị Cẩm Nhung</a>
     </nav>
   </main>
-  <script>window.CayPresentation?.mount();</script>
+  <aside id="studentAccount" class="cay-account-dock" aria-label="Tài khoản học sinh" hidden>
+    <div>
+      <span>Tài khoản</span>
+      <strong id="studentIdentity"></strong>
+      <p id="studentAccountStatus" role="status"></p>
+    </div>
+    <button id="studentSignOut" type="button">Đăng xuất</button>
+  </aside>
+  <script>
+    window.CayPresentation?.mount();
+    document.addEventListener("DOMContentLoaded", () => {
+      const student = window.CayStudentSession;
+      const client = student?.client(window.CAY_SUPABASE);
+      if (!client) return;
+      student.bindSignOut(client);
+      student.restoreAccount(client).catch(() => {});
+    }, {once: true});
+  </script>
 </body>
 </html>

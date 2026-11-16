@@ -584,7 +584,7 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
   </section>
   <section id="cayLogin" class="cay-sheet" aria-labelledby="cayLoginTitle">
     <h1 id="cayLoginTitle" data-cay-site-name>Cây Kí Ức</h1>
-    <p id="cayLoginHint">Đăng nhập để gửi lời chúc và tâm sự.</p>
+    <p id="cayLoginHint">Đăng nhập để vào cây của thầy cô.</p>
     <div id="cayRolePicker" class="cay-role-picker" role="group" aria-label="Chọn cách đăng nhập" hidden>
       <button id="cayRoleStudent" type="button" aria-pressed="true" aria-controls="cayStudentPanel">Học sinh</button>
       <button id="cayRoleTeacher" type="button" aria-pressed="false" aria-controls="cayLoginForm">Giáo viên</button>
@@ -676,6 +676,7 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
 </main>
 <script>window.CayPresentation?.mount(CONFIG);</script>
 <button id="cayExit" class="button glass" hidden>Đăng xuất</button>
+<a id="cayAddMessage" class="button glass" href="./gui-bai.html?viet=1" hidden>Thêm lời nhắn</a>
 <aside id="studentAccount" class="cay-account-dock" aria-label="Tài khoản học sinh" hidden>
   <div>
     <span>Tài khoản</span>
@@ -816,8 +817,8 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
 </footer>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.3/dist/umd/supabase.min.js"></script>
 <script src="./cay-config.js"></script>
-<script src="./student-session.js?v=role-2"></script>
-<script src="./cay-data.js?v=role-2"></script>
+<script src="./student-session.js?v=tree-first"></script>
+<script src="./cay-data.js?v=tree-first"></script>
 <script>
 (async () => {
   "use strict";
@@ -1367,7 +1368,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     const closeButton=byId("letterClose"), reviewButton=byId("readLetter"), soundButton=byId("introSound");
     const mote=byId("letterMote"), signature=byId("letterSignature"), stroke=byId("letterStroke");
     const lowMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const controls=[...document.querySelectorAll("header,.tools,#timeline,#view,#fallbackScene,#cayExit")];
+    const controls=[...document.querySelectorAll("header,.tools,#timeline,#view,#fallbackScene,#cayExit,#cayAddMessage")];
     const duration=(value,fallback,min)=>Number.isFinite(value) ? Math.max(min,value) : fallback;
     const timings={
       envelope:lowMotion ? .75 : duration(cfg.envelopeDuration,3.6,.5),
