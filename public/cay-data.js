@@ -51,13 +51,15 @@
   async function loadTree(config, slug) {
     const responses = await Promise.all([
       client.from("cay_teachers").select("name,class_name,letter").eq("slug",slug).maybeSingle(),
-      client.from("cay_students").select("number,name").order("number"),
+      client.from("cay_students").select("number,name,class_roster").order("number"),
       client.from("cay_messages").select("student_number,wish,story,note_date,photo_paths").eq("teacher_slug",slug),
       client.from("cay_gallery").select("teacher_slug,slot,season,object_path,caption,photo_date")
     ]);
-    const [teacher, roster, messages, gallery] = responses.map(result);
+    const [teacher, allStudents, messages, gallery] = responses.map(result);
     if (!teacher) throw new Error("Chưa mở được cây. Cô thử nhập lại mã nhé.");
     const photos = await galleryPhotos(gallery,slug,client);
+    const classRoster = allStudents.filter(student => student.class_roster);
+    const roster = classRoster.length ? classRoster : allStudents;
     const byStudent = new Map(messages.map(row => [row.student_number,row]));
     config.teacherName = window.CAY_TEACHERS.personalName(teacher.name);
     config.className = teacher.class_name;
@@ -77,10 +79,15 @@
   async function loadPublicTree(config, slug, {url,publishableKey}) {
     const endpoint = new URL("/rest/v1/cay_public_wishes",url);
     endpoint.search = new URLSearchParams({select:"wish",teacher_slug:"eq." + slug,order:"wish.asc"});
-    const [response, photos, teachers] = await Promise.all([
+    const classSizeUrl = new URL("/rest/v1/rpc/cay_class_size",url);
+    const classSize = fetch(classSizeUrl,{headers:{apikey:publishableKey}})
+      .then(response => response.ok ? response.json() : null)
+      .catch(() => null);
+    const [response, photos, teachers, rosterSize] = await Promise.all([
       fetch(endpoint,{headers:{apikey:publishableKey}}),
       loadSharedGallery(slug,url,publishableKey).catch(() => []),
-      window.CAY_TEACHERS.load()
+      window.CAY_TEACHERS.load(),
+      classSize
     ]);
     if (!response.ok) throw new Error("Chưa mở được cây công khai. Hãy tải lại trang để thử lại.");
     const wishes = await response.json();
@@ -93,7 +100,8 @@
       closing:"Thương mến,",
       signature:"Tập thể lớp"
     };
-    config.students = Array.from({length:Math.max(config.students.length,wishes.length)},(_,i)=>"Bạn " + (i+1));
+    const studentCount = Number.isSafeInteger(rosterSize) && rosterSize > 0 ? rosterSize : config.students.length;
+    config.students = Array.from({length:Math.max(studentCount,wishes.length)},(_,i)=>"Bạn " + (i+1));
     config.wishes = wishes.map(({wish},student)=>({student,text:wish}));
     config.bushes.items = [];
     if (photos.length) config.photos = photos;
@@ -185,6 +193,20 @@
       if (error instanceof RangeError && error.message.startsWith("Mỗi lượt nhập")) throw error;
       throw new Error("Chưa đọc được tệp Excel. Hãy mở và lưu lại dưới dạng .xlsx rồi thử lại.");
     }
+  }
+
+  async function readRosterFile(file) {
+    const data = await workbookRows(file);
+    const key = value => clean(value).normalize("NFD").replace(/\p{Diacritic}/gu, "")
+      .toLowerCase().replace(/[^a-z0-9]/g, "");
+    const numberColumn = value => ["stt","sothutu","mahocsinh"].includes(key(value));
+    const nameColumn = value => ["hovaten","hoten","hovatenhocsinh","hotenhocsinh"].includes(key(value));
+    const header = data.findIndex(row => row.some(numberColumn) && row.some(nameColumn));
+    if (header < 0) throw new Error("Tệp danh sách cần có cột STT và Họ và tên.");
+    const numbers = data[header].findIndex(numberColumn);
+    const names = data[header].findIndex(nameColumn);
+    return data.slice(header + 1).filter(row => clean(row[numbers]) || clean(row[names]))
+      .map(row => clean(row[numbers]) + "," + clean(row[names])).join("\n");
   }
 
   async function exportMessages() {
@@ -431,7 +453,27 @@
       return "Đã lưu hồ sơ cây.";
     });
     $("cayRoster").value = roster.map(student => student.number + "," + student.name).join("\n");
-    action($("cayRosterForm"),$("cayRosterStatus"),async () => {
+    const rosterFile = $("cayRosterFile");
+    const rosterForm = $("cayRosterForm");
+    const rosterStatus = $("cayRosterStatus");
+    rosterFile.addEventListener("change", async () => {
+      const file = rosterFile.files[0];
+      if (!file) return;
+      const save = rosterForm.querySelector("button[type=submit]");
+      save.disabled = true;
+      rosterStatus.textContent = "Đang đọc danh sách…";
+      try {
+        const data = await readRosterFile(file);
+        if (rosterFile.files[0] !== file) return;
+        $("cayRoster").value = data;
+        rosterStatus.textContent = "Kiểm tra danh sách rồi bấm Lưu danh sách.";
+      } catch (error) {
+        if (rosterFile.files[0] === file) rosterStatus.textContent = error.message;
+      } finally {
+        if (!rosterFile.files[0] || rosterFile.files[0] === file) save.disabled = false;
+      }
+    });
+    action(rosterForm,rosterStatus,async () => {
       const keys = new Set();
       const rows = $("cayRoster").value.split(/\r?\n/).filter(clean).map(line => {
         const match = line.match(/^\s*(\d+)\s*,\s*(.+)$/);
@@ -441,7 +483,7 @@
           throw new Error("Mỗi dòng cần mã học sinh và tên, ví dụ 1,Nguyễn Văn An.");
         }
         keys.add(number);
-        return {number,name};
+        return {number,name,class_roster: name !== "Học sinh " + number};
       });
       if (!rows.length) throw new Error("Danh sách lớp đang trống.");
       result(await client.from("cay_students").upsert(rows,{onConflict:"number"}));
@@ -487,9 +529,7 @@
   }
 
   async function loadOwnSubmission(config, receipt, settings) {
-    const studentClient = window.supabase.createClient(settings.url, settings.publishableKey, {
-      auth: {storageKey: "cay-student-session", persistSession: true, detectSessionInUrl: false}
-    });
+    const studentClient = window.CayStudentSession(settings);
     const {data:{session}} = await studentClient.auth.getSession();
     if (!session) return false;
     const item = result(await studentClient.rpc("cay_read_own_submission", {
@@ -527,7 +567,8 @@
     $("cayLoginTitle").textContent = admin ? "Quản lý " + siteName : siteName;
     if (admin) $("cayLoginHint").textContent = "Nhập mã quản lý để thêm ảnh lớp và chỉnh nội dung.";
     $("cayAdminLink").hidden = admin;
-    $("cayPasswordLabel").textContent = admin ? "Mã quản lý" : "Mã truy cập";
+    $("cayStudentLink").hidden = admin || receipt !== null;
+    $("cayPasswordLabel").textContent = admin ? "Mã quản lý" : "Mã của cô giáo";
     $("cayLoginSubmit").textContent = admin ? "Mở trang quản lý" : "Mở cây";
     password.inputMode = "numeric";
     password.maxLength = 60;
@@ -544,7 +585,7 @@
           revealPublicTree("Về biểu mẫu","./gui-bai.html");
           return true;
         }
-        hint.textContent = "Chưa tìm thấy bài của bạn. Hãy mở bằng trình duyệt đã dùng để gửi bài.";
+        hint.textContent = "Chưa tìm thấy bài. Bạn đăng nhập bằng Google đã dùng để gửi bài rồi mở lại từ mục Bài đã gửi nhé.";
       } catch {
         hint.textContent = "Chưa mở được bài gửi. Hãy tải lại trang để thử lại.";
       }

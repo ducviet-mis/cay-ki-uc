@@ -583,7 +583,7 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
   </section>
   <section id="cayLogin" class="cay-sheet" aria-labelledby="cayLoginTitle">
     <h1 id="cayLoginTitle" data-cay-site-name>Cây Kí Ức</h1>
-    <p id="cayLoginHint">Nhập mã được gửi riêng để mở cây của mình.</p>
+    <p id="cayLoginHint">Dành cho cô giáo. Cô nhập mã được gửi riêng để mở cây.</p>
     <form id="cayLoginForm">
       <label for="cayPassword" id="cayPasswordLabel">Mã truy cập</label>
       <div class="cay-code-field">
@@ -594,6 +594,7 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
       <button id="cayLoginSubmit" type="submit" disabled>Mở cây</button>
     </form>
     <nav class="cay-row" aria-label="Lối vào khác">
+      <a class="cay-link" id="cayStudentLink" href="./gui-bai.html">Học sinh D5K63 · Đăng nhập Google</a>
       <a class="cay-link" id="cayPublicLink" href="./loi-chuc.html">Xem lời chúc</a>
       <a id="cayAdminLink" href="?admin=1" hidden>Trang quản lý</a>
     </nav>
@@ -656,6 +657,7 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
     <details>
       <summary><strong>Danh sách lớp</strong></summary>
       <form id="cayRosterForm">
+        <label>Tệp danh sách lớp (.xlsx hoặc .csv)<input type="file" id="cayRosterFile" accept=".xlsx,.csv"></label>
         <label>Mỗi dòng gồm mã và tên học sinh<textarea id="cayRoster" rows="7" required></textarea></label>
         <button type="submit">Lưu danh sách</button><p id="cayRosterStatus" class="cay-status" role="status"></p>
       </form>
@@ -797,7 +799,8 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
 </footer>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.3/dist/umd/supabase.min.js"></script>
 <script src="./cay-config.js"></script>
-<script src="./cay-data.js"></script>
+<script src="./student-session.js?v=1"></script>
+<script src="./cay-data.js?v=google-1"></script>
 <script>
 (async () => {
   "use strict";
