@@ -68,16 +68,13 @@ const CONFIG = {
 // Đổi pond thành true để hiện hồ nhỏ bên phải lối mòn.
 const SCENE_OPTIONS = { pond: false };
 </script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link id="fontStyles" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&amp;family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&amp;family=Dancing+Script:wght@500;600&amp;display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <style>
 :root {
   color-scheme: dark;
   --ink: #f7efdf; --muted: #ddd1b9; --gold: #f2d5a0;
   --glass: rgba(27,30,26,.76); --line: rgba(241,222,183,.24);
   --font: "Be Vietnam Pro", system-ui, sans-serif;
-  --serif: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --serif: "Spectral", Georgia, "Times New Roman", serif;
   font-family: var(--font);
 }
 *, *::before, *::after { box-sizing: border-box }
@@ -219,8 +216,7 @@ body.intro-active :is(header,.tools,#timeline) { pointer-events:none; transition
 }
 #intro {
   --veil:1; --env-time:3.6s; --tilt-x:0deg; --tilt-y:0deg;
-  --hand:"Dancing Script","Be Vietnam Pro",cursive;
-  --letter-title:"Cormorant Garamond","Be Vietnam Pro",Georgia,serif;
+  --letter-title:var(--serif);
   --paper-grain:url("data:image/svg+xml,%3Csvg viewBox='0 0 144 144' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.69' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' opacity='.29' filter='url(%23n)'/%3E%3C/svg%3E");
   z-index:7; isolation:isolate; overflow:hidden; display:grid; place-items:center;
   padding:clamp(14px,4vw,36px);
@@ -290,7 +286,7 @@ body.intro-active :is(header,.tools,#timeline) { pointer-events:none; transition
 }
 .envelope-address {
   position:absolute; z-index:4; inset:75% 7% auto; text-align:center; overflow-wrap:anywhere;
-  font:600 clamp(22px,5vw,45px)/1 var(--hand); color:#64422a;
+  font:italic 500 clamp(20px,4.4vw,38px)/1.24 var(--serif); color:#64422a;
   text-shadow:0 1px #fff5d09e;
 }
 .wax-seal {
@@ -340,7 +336,7 @@ body.intro-active :is(header,.tools,#timeline) { pointer-events:none; transition
 #letterScroll {
   position:relative; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:none;
   border-radius:inherit; padding:clamp(23px,4vw,40px);
-  font:600 clamp(25px,4vw,34px)/1.30 var(--hand);
+  font:400 clamp(20px,3.8vw,28px)/1.5 var(--serif);
   overflow-wrap:anywhere;
 }
 #letterScroll::-webkit-scrollbar { display:none }
@@ -352,7 +348,7 @@ body.intro-active :is(header,.tools,#timeline) { pointer-events:none; transition
 #letterDate { text-align:right; color:#74553b; font:600 clamp(17px,3vw,22px)/1.1 var(--letter-title) }
 #letterGreeting { color:#593623; font:600 clamp(26px,4.3vw,38px)/1.17 var(--letter-title) }
 #letterSign { min-height:1.25em; margin-top:-.36em }
-#letterSignature { position:relative; display:inline-block; max-width:100%; color:#693832; font-size:1.14em; clip-path:inset(0 calc(100% - var(--signed,0%)) 0 0) }
+#letterSignature { position:relative; display:inline-block; max-width:100%; color:#693832; font-size:1.14em; font-style:italic; font-weight:500; clip-path:inset(0 calc(100% - var(--signed,0%)) 0 0) }
 #letterStroke { display:block; width:min(210px,70%); height:12px; color:#7f423c; margin:-.18em 0 0 .18em; overflow:visible }
 #letterStroke path { stroke-dasharray:1; stroke-dashoffset:calc(1 - var(--pen,0)); }
 .wet-ink { color:#32180f }
@@ -452,7 +448,7 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
 }
 #bushScroll::-webkit-scrollbar { display: none }
 #bushText {
-  margin: 0; white-space: pre-wrap; font: 500 clamp(22px,3.6vw,30px)/1.42 "Dancing Script",var(--serif);
+  margin: 0; white-space: pre-wrap; font: italic 500 clamp(21px,3.6vw,28px)/1.5 var(--serif);
 }
 #bushReader.compact #bushText { font-size: clamp(27px,5vw,38px) }
 #bushText.missing { color: #786551; opacity: .73 }
@@ -508,7 +504,7 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
   body:not([data-scene-mode="2d"]) #bushProgress { top: calc(max(12px,env(safe-area-inset-top)) + 100px); left: 12px; transform: none }
 }
 </style>
-<link rel="stylesheet" href="./cay-portal.css">
+<link id="fontStyles" rel="stylesheet" href="./cay-portal.css" media="all">
 </head>
 <body class="intro-active" data-cay-locked>
 

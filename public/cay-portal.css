@@ -1,4 +1,38 @@
-@import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Dancing+Script:wght@600&display=swap");
+@font-face {
+  font-family: "Spectral";
+  src: url("./fonts/spectral-regular.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Spectral";
+  src: url("./fonts/spectral-semibold.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Spectral";
+  src: url("./fonts/spectral-mediumitalic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Be Vietnam Pro";
+  src: url("./fonts/be-vietnam-pro-regular.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Be Vietnam Pro";
+  src: url("./fonts/be-vietnam-pro-semibold.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
 
 .cay-surface {
   --cay-moss: #1f2d24;
@@ -7,8 +41,7 @@
   --cay-gold: #d9b26a;
   --cay-wine: #7a2630;
   --cay-sans: "Be Vietnam Pro", system-ui, sans-serif;
-  --cay-serif: "Cormorant Garamond", Georgia, serif;
-  --cay-script: "Dancing Script", cursive;
+  --cay-serif: "Spectral", Georgia, serif;
   --cay-glass: linear-gradient(152deg,#405448de,#26372de8 63%,#212f27f2);
   color: var(--cay-cream);
   color-scheme: dark;
@@ -120,7 +153,7 @@ html[data-cay-welcome] .cay-ink-tree [data-cay-grow]:not(.is-drawn) path { strok
   padding: max(14px,env(safe-area-inset-top)) max(22px,env(safe-area-inset-right))
     max(14px,env(safe-area-inset-bottom)) max(22px,env(safe-area-inset-left));
 }
-.cay-story-brand { margin: 12px 0 0; font: 600 clamp(1.05rem,3vw,1.45rem)/1.1 var(--cay-serif); color: #e5c989; }
+.cay-story-brand { margin: 12px 0 0; font: 600 clamp(1.05rem,3vw,1.4rem)/1.25 var(--cay-serif); color: #e5c989; }
 #cayStoryStage {
   display: flex;
   align-items: center;
@@ -134,15 +167,22 @@ html[data-cay-welcome] .cay-ink-tree [data-cay-grow]:not(.is-drawn) path { strok
 #cayStoryLines { width: min(100%,700px); }
 .cay-story-title {
   margin: 0 0 12px;
-  font: 600 clamp(3rem,7.8vw,6.4rem)/.91 var(--cay-serif);
+  font: 600 clamp(2.7rem,7vw,5.7rem)/1.06 var(--cay-serif);
+  letter-spacing: -.025em;
   text-wrap: balance;
 }
-[data-slide="1"] .cay-story-title { font-size: clamp(4.6rem,15vw,12rem); letter-spacing: .048em; color: #f7e8c8; }
+[data-slide="1"] .cay-story-title {
+  font-size: clamp(3.8rem,14vw,10.4rem);
+  font-variant-numeric: lining-nums tabular-nums;
+  letter-spacing: .015em;
+  white-space: nowrap;
+  color: #f7e8c8;
+}
 [data-slide="2"] .cay-story-title { font-size: clamp(2.5rem,5.3vw,4.2rem); color: #edcf94; }
 [data-slide="3"] .cay-story-title { font-size: clamp(2.4rem,5.6vw,4.5rem); }
 .cay-story-body { max-width: 550px; margin: 9px 0; font-size: clamp(.9rem,2.6vw,1.14rem); line-height: 1.7; color: #eadcc2; }
 [data-slide="1"] .cay-story-body { font-size: clamp(1rem,3.15vw,1.4rem); letter-spacing: .02em; }
-.cay-story-quote { margin: 4px 0; font: 600 clamp(1.35rem,4.5vw,2.65rem)/1.32 var(--cay-script); color: #f0cd89; }
+.cay-story-quote { margin: 4px 0; font: italic 500 clamp(1.3rem,4vw,2.3rem)/1.36 var(--cay-serif); color: #f0cd89; }
 .cay-story-line { animation: cay-line-in 540ms cubic-bezier(.18,.7,.24,1) calc(var(--line,0) * 52ms) both; }
 #cayStoryLines[data-leaving] > * { animation: cay-line-out 245ms ease both; }
 @keyframes cay-line-in { from { opacity: 0; transform: translateY(11px); } to { opacity: 1; transform: translateY(0); } }
@@ -184,7 +224,7 @@ html[data-cay-welcome] .cay-ink-tree [data-cay-grow]:not(.is-drawn) path { strok
 #cayLogin::before { display: block; content: ""; width: 54px; height: 1px; margin: 0 auto 15px; background: var(--cay-gold); }
 #cayLoginTitle, #cayAdminTitle {
   color: var(--cay-cream);
-  font: 600 clamp(2.45rem,8vw,4.2rem)/.98 var(--cay-serif);
+  font: 600 clamp(2.25rem,7.2vw,3.6rem)/1.13 var(--cay-serif);
   margin: 0;
 }
 #cayLoginTitle, #cayLoginHint { text-align: center; }
@@ -260,7 +300,7 @@ body.cay-chooser { margin: 0; min-height: 100vh; min-height: 100dvh; }
     max(34px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));
 }
 .cay-choose .cay-back { display: inline-flex; align-items: center; min-height: 44px; font-size: .8rem; }
-.cay-choose h1 { max-width: 700px; margin: clamp(28px,7vh,68px) 0 14px; font: 600 clamp(3rem,9vw,6rem)/.91 var(--cay-serif); text-wrap: balance; }
+.cay-choose h1 { max-width: 700px; margin: clamp(28px,7vh,68px) 0 14px; font: 600 clamp(2.55rem,8vw,5.3rem)/1.04 var(--cay-serif); letter-spacing: -.025em; text-wrap: balance; }
 .cay-choose p { margin: 0 0 25px; color: #eddfc6; font-size: clamp(.85rem,2.5vw,1rem); line-height: 1.6; }
 .cay-choice-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,185px),1fr)); gap: 12px; }
 .cay-choice-grid a {
