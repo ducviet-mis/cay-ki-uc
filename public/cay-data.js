@@ -59,7 +59,7 @@
     if (!teacher) throw new Error("Chưa mở được cây. Cô thử nhập lại mã nhé.");
     const photos = await galleryPhotos(gallery,slug,client);
     const byStudent = new Map(messages.map(row => [row.student_number,row]));
-    config.teacherName = teacher.name;
+    config.teacherName = window.CAY_TEACHERS.personalName(teacher.name);
     config.className = teacher.class_name;
     config.intro.letter = {...config.intro.letter,...teacher.letter};
     config.students = roster.map(student => student.name);
@@ -77,14 +77,15 @@
   async function loadPublicTree(config, slug, {url,publishableKey}) {
     const endpoint = new URL("/rest/v1/cay_public_wishes",url);
     endpoint.search = new URLSearchParams({select:"wish",teacher_slug:"eq." + slug,order:"wish.asc"});
-    const [response, photos] = await Promise.all([
+    const [response, photos, teachers] = await Promise.all([
       fetch(endpoint,{headers:{apikey:publishableKey}}),
-      loadSharedGallery(slug,url,publishableKey).catch(() => [])
+      loadSharedGallery(slug,url,publishableKey).catch(() => []),
+      window.CAY_TEACHERS.load()
     ]);
     if (!response.ok) throw new Error("Chưa mở được cây công khai. Hãy tải lại trang để thử lại.");
     const wishes = await response.json();
     config.publicView = true;
-    config.teacherName = slug.slice(-1);
+    config.teacherName = window.CAY_TEACHERS.personalName(teachers[slug]);
     config.intro.enabled = true;
     config.intro.letter = {
       greeting:"Kính gửi cô [TÊN CÔ],",

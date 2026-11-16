@@ -134,8 +134,11 @@ create policy cay_photo_remove on storage.objects for delete to authenticated
     and not exists (select 1 from public.cay_gallery g where g.object_path = objects.name)
     and not exists (select 1 from public.cay_messages m where m.photo_paths @> array[objects.name]));
 
-insert into public.cay_teachers (slug, name)
-select 'co-' || n, 'Giáo viên ' || n from generate_series(1,4) n
+insert into public.cay_teachers (slug, name) values
+  ('co-1', 'Cô Phùng Thị Việt Hà'),
+  ('co-2', 'Cô Ngô Thị Thùy Giang'),
+  ('co-3', 'Cô Ngô Thị Phượng'),
+  ('co-4', 'Cô Nguyễn Thị Cẩm Nhung')
 on conflict (slug) do nothing;
 
 insert into public.cay_students (number, name)

@@ -7,6 +7,7 @@
   <title>Chọn cây · Cây Kí Ức</title>
   <link rel="stylesheet" href="./cay-portal.css">
   <script src="./cay-presentation.js"></script>
+  <script defer src="./cay-config.js"></script>
 </head>
 <body class="cay-chooser cay-surface" data-cay-surface>
   <main class="cay-choose">
@@ -14,10 +15,10 @@
     <h1>Chọn cây để xem lời chúc</h1>
     <p>Vào cây và chạm vào các tấm thiệp trên cành để đọc.</p>
     <nav class="cay-choice-grid" aria-label="Chọn cây của cô">
-      <a href="./?xem=co-1" style="--tile:0">Cây của Cô 1</a>
-      <a href="./?xem=co-2" style="--tile:1">Cây của Cô 2</a>
-      <a href="./?xem=co-3" style="--tile:2">Cây của Cô 3</a>
-      <a href="./?xem=co-4" style="--tile:3">Cây của Cô 4</a>
+      <a href="./?xem=co-1" data-cay-teacher="co-1" data-cay-teacher-prefix="Cây của " style="--tile:0">Cây của Cô Phùng Thị Việt Hà</a>
+      <a href="./?xem=co-2" data-cay-teacher="co-2" data-cay-teacher-prefix="Cây của " style="--tile:1">Cây của Cô Ngô Thị Thùy Giang</a>
+      <a href="./?xem=co-3" data-cay-teacher="co-3" data-cay-teacher-prefix="Cây của " style="--tile:2">Cây của Cô Ngô Thị Phượng</a>
+      <a href="./?xem=co-4" data-cay-teacher="co-4" data-cay-teacher-prefix="Cây của " style="--tile:3">Cây của Cô Nguyễn Thị Cẩm Nhung</a>
     </nav>
   </main>
   <script>window.CayPresentation?.mount();</script>
