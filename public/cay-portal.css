@@ -253,7 +253,7 @@ html[data-cay-welcome] .cay-ink-tree [data-cay-grow]:not(.is-drawn) path { strok
   background: transparent; color: #f0d295; font: 500 .76rem var(--cay-sans); cursor: pointer;
 }
 #cayPassword[aria-invalid="true"] { border-color: #efa28c; }
-#cayPortal :is(button[type="submit"],#cayAdminSignout) {
+#cayPortal :is(button[type="submit"],#cayAdminSignout,.cay-admin-back) {
   min-height: 44px; padding: 8px 14px; border: 1px solid #ddb974; border-radius: 9px;
   background: #dec07d; color: #23291c; font: 600 .84rem/1.38 var(--cay-sans);
   cursor: pointer; transition: background-color 180ms ease;
@@ -289,8 +289,9 @@ html[data-cay-welcome] .cay-ink-tree [data-cay-grow]:not(.is-drawn) path { strok
 #cayAdmin form > button { justify-self: start; }
 #cayAdmin .cay-row label { flex: 1 1 120px; }
 #cayAdmin p { margin: 2px 0; font-size: .84rem; }
-#cayPortal :is(#cayAdminSignout,button[value="remove"]) { background: #263b30; color: #f4dfb9; }
-#cayPortal :is(#cayAdminSignout,button[value="remove"]):hover { background: #3a4e40; }
+#cayPortal .cay-admin-back { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+#cayPortal :is(#cayAdminSignout,.cay-admin-back,button[value="remove"]) { background: #263b30; color: #f4dfb9; }
+#cayPortal :is(#cayAdminSignout,.cay-admin-back,button[value="remove"]):hover { background: #3a4e40; }
 #cayPortal input::file-selector-button { margin: 0 10px 0 0; padding: 4px 8px; border: 0; border-radius: 5px; background: #d9b26a; color: #202c21; font: inherit; }
 
 body.cay-chooser { margin: 0; min-height: 100vh; min-height: 100dvh; }
