@@ -38,6 +38,23 @@
     location.replace("./?dang-nhap=1");
   }
 
+  async function isAdmin(client) {
+    const {data, error} = await client.rpc("cay_is_admin");
+    return !error && data === true;
+  }
+
+  async function showAdminShortcut(client) {
+    if (!await isAdmin(client)) return;
+    const dock = document.getElementById("studentAccount");
+    if (dock.querySelector(".cay-admin-shortcut")) return;
+    const link = document.createElement("a");
+    link.className = "cay-admin-shortcut";
+    link.href = "./?admin=1";
+    link.textContent = "Quản lý";
+    link.title = "Quản lý lời chúc và ảnh lớp";
+    document.getElementById("studentSignOut").before(link);
+  }
+
   async function restoreAccount(client) {
     const {data:{session}} = await client.auth.getSession();
     if (!session) return null;
@@ -47,7 +64,10 @@
     showAccount(session.user.email ?? "Tài khoản Google");
     const {data, error} = await client.rpc("cay_get_student_account");
     const profile = error ? null : data?.[0];
-    if (profile) showAccount(profile.student_name);
+    if (profile) {
+      showAccount(profile.student_name);
+      showAdminShortcut(client).catch(() => {});
+    }
     return {profile};
   }
 
@@ -68,5 +88,5 @@
     });
   }
 
-  window.CayStudentSession = {client, signIn, restoreAccount, showAccount, bindSignOut, returnToLogin};
+  window.CayStudentSession = {client, signIn, restoreAccount, showAccount, bindSignOut, returnToLogin, isAdmin};
 })();
