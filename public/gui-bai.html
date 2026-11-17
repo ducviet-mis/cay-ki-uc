@@ -31,13 +31,22 @@
     .cay-submission-types { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
     .cay-submission-types a { padding:0 10px; border-radius:8px; text-decoration:none; }
     .cay-submission-types a[aria-current="page"] { background:#465741; color:#ffebc2; }
-    .cay-history { padding:0; list-style:none; }
-    .cay-history li { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:4px 12px; border-bottom:1px solid #e2c8944a; }
+    .cay-history { padding:0; list-style:none; margin:0 0 20px; }
+    .cay-history li { padding:12px 0; border-bottom:1px solid #e2c8944a; }
+    .cay-history p { margin:6px 0; overflow-wrap:anywhere; }
+    .cay-history-actions { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; }
+    .cay-entry :is(.cay-history-edit, .cay-history-delete, #historyCancel) { background:transparent; color:#efdbaf; }
+    .cay-entry .cay-history-delete { border-color:#bc8475; color:#ffd8cf; }
+    .cay-history-dialog { width:min(520px,calc(100% - 28px)); max-height:calc(100dvh - 28px); overflow:auto; padding:20px; border:1px solid #e2c89480; border-radius:14px; background:#223329; color:#f4ecdc; }
+    .cay-history-dialog::backdrop { background:#0b1511bd; }
+    .cay-history-dialog h2 { margin:0 0 10px; }
+    .cay-history-dialog textarea { max-height:40dvh; }
+    .cay-history-dialog .cay-history-actions { margin-top:12px; }
   </style>
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.3/dist/umd/supabase.min.js"></script>
   <script defer src="./cay-config.js"></script>
   <script defer src="./student-session.js?v=loi-nhan-2"></script>
-  <script defer src="./gui-bai.js?v=loi-chuc-ngay"></script>
+  <script defer src="./gui-bai.js?v=bai-da-gui"></script>
 </head>
 <body class="cay-chooser cay-surface cay-submit" data-cay-surface>
   <main class="cay-sheet cay-entry">
@@ -85,9 +94,25 @@
     </form>
     <section id="studentHistory" hidden aria-labelledby="studentHistoryTitle">
       <h2 id="studentHistoryTitle">Bài đã gửi</h2>
-      <p id="studentHistoryStatus" role="status"></p>
-      <ul class="cay-history" id="studentHistoryList"></ul>
+      <p class="cay-status" id="studentHistoryStatus" role="status"></p>
+      <h3>Lời chúc công khai</h3>
+      <p id="historyWishesEmpty" hidden>Bạn chưa gửi lời chúc nào.</p>
+      <ul class="cay-history" id="historyWishes"></ul>
+      <h3>Lời nhắn riêng</h3>
+      <p id="historyNotesEmpty" hidden>Bạn chưa gửi lời nhắn riêng nào.</p>
+      <ul class="cay-history" id="historyNotes"></ul>
     </section>
+    <dialog id="historyDialog" class="cay-history-dialog" aria-labelledby="historyEditTitle">
+      <form id="historyEditForm">
+        <h2 id="historyEditTitle">Chỉnh sửa</h2>
+        <label>Nội dung<textarea id="historyEditBody" rows="6" required autofocus></textarea></label>
+        <p class="cay-status" id="historyEditStatus" role="status"></p>
+        <div class="cay-history-actions">
+          <button id="historySave" type="submit">Lưu chỉnh sửa</button>
+          <button id="historyCancel" type="button">Hủy</button>
+        </div>
+      </form>
+    </dialog>
   </main>
   <aside id="studentAccount" class="cay-account-dock" aria-label="Tài khoản học sinh" hidden>
     <div>

@@ -6,7 +6,8 @@
   const view = $("submissionView"), claim = $("claimForm"), choice = $("studentChoice");
   const google = $("googleButton"), signOut = $("studentSignOut");
   const status = $("studentStatus"), submissionStatus = $("submissionStatus");
-  const historyList = $("studentHistoryList"), historyStatus = $("studentHistoryStatus");
+  const historyStatus = $("studentHistoryStatus"), historyDialog = $("historyDialog");
+  const historyBody = $("historyEditBody"), historySave = $("historySave"), historyCancel = $("historyCancel");
   const teacher = form.elements.namedItem("teacher");
   const query = new URLSearchParams(location.search);
   const messageTargetKey = "cay-student-next-message";
@@ -18,7 +19,7 @@
   const dateFormat = new Intl.DateTimeFormat("vi-VN", {
     timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric"
   });
-  let draft = null, accountId = null;
+  let draft = null, accountId = null, editingItem = null, historyRequest = 0;
 
   function message(target, text, kind) {
     target.textContent = text;
@@ -83,27 +84,118 @@
     button.textContent = privateNote ? "Gửi lời nhắn riêng" : "Gửi lời chúc";
   }
 
-  async function refreshHistory() {
-    const author = accountId;
+  function receiptLink(id, kind) {
+    return "./?bai=" + encodeURIComponent(id) + "&loai=" + kind;
+  }
+
+  function renderHistoryItem(row) {
+    const privateNote = row.kind === "nhan";
+    const title = privateNote ? "lời nhắn riêng" : "lời chúc";
+    const item = document.createElement("li");
+    const details = document.createElement("small");
+    const name = [...teacher.options].find(option => option.value === row.teacher_slug)?.textContent.trim();
+    details.textContent = [name, dateFormat.format(new Date(row.submitted_at)),
+      row.on_tree ? (privateNote ? "Đang hiện ở bông hoa" : "Đang hiện trên cây") : "",
+      row.photo_count ? row.photo_count + " ảnh" : ""].filter(Boolean).join(" · ");
+    const preview = document.createElement("p");
+    preview.textContent = row.body.length > 140 ? row.body.slice(0, 140) + "…" : row.body;
+    preview.hidden = !row.body;
+    const actions = document.createElement("div");
+    actions.className = "cay-history-actions";
+    const link = document.createElement("a");
+    link.className = "cay-submission-view";
+    link.href = receiptLink(row.id, row.kind);
+    link.textContent = "Xem bài";
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "cay-history-edit";
+    edit.textContent = "Chỉnh sửa";
+    edit.addEventListener("click", () => {
+      editingItem = row;
+      $("historyEditTitle").textContent = "Chỉnh sửa " + title;
+      historyBody.maxLength = privateNote ? 12000 : 3000;
+      historyBody.value = row.body;
+      message($("historyEditStatus"), "");
+      historyDialog.showModal();
+    });
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "cay-history-delete";
+    remove.textContent = "Xóa";
+    remove.addEventListener("click", async () => {
+      if (!accountId || !window.confirm("Xóa " + title + " này" + (row.photo_count ? " và ảnh đính kèm?" : "?"))) return;
+      remove.disabled = edit.disabled = true;
+      const author = accountId;
+      try {
+        await changeHistoryItem(row, null);
+        if (author !== accountId) return;
+        item.remove();
+        if (view.getAttribute("href") === link.getAttribute("href")) {
+          view.hidden = true;
+          message(submissionStatus, "");
+        }
+        message(historyStatus, "Đã xóa " + title + ".", "success");
+        await refreshHistory();
+      } catch {
+        if (author === accountId) message(historyStatus, "Chưa xóa được bài. Bạn thử lại nhé.", "error");
+      } finally {
+        remove.disabled = edit.disabled = false;
+      }
+    });
+    actions.append(link, edit, remove);
+    item.append(details, preview, actions);
+    return item;
+  }
+
+  function changeHistoryItem(row, body) {
+    return rpc("cay_change_own_submission", {p_id: row.id, p_kind: row.kind, p_body: body});
+  }
+
+  historyCancel.addEventListener("click", () => historyDialog.close());
+  historyDialog.addEventListener("cancel", event => {
+    if (historySave.disabled) event.preventDefault();
+  });
+  historyDialog.addEventListener("close", () => { editingItem = null; });
+  $("historyEditForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    if (!accountId || !editingItem || historySave.disabled) return;
+    const row = editingItem, body = historyBody.value.trim(), author = accountId;
+    const editStatus = $("historyEditStatus");
+    if (!body) {
+      message(editStatus, "Bạn điền nội dung trước khi lưu nhé.", "error");
+      return;
+    }
+    historySave.disabled = historyCancel.disabled = historyBody.disabled = true;
+    message(editStatus, "Đang lưu…");
     try {
-      const rows = await rpc("cay_list_student_submissions");
+      await changeHistoryItem(row, body);
       if (author !== accountId) return;
-      historyList.replaceChildren(...rows.map(row => {
-        const item = document.createElement("li");
-        const details = document.createElement("span");
-        const name = [...teacher.options].find(option => option.value === row.teacher_slug)?.textContent.trim();
-        details.textContent = [name, dateFormat.format(new Date(row.submitted_at)),
-          row.published_at ? "Đã lên cây" : "Đã gửi"].filter(Boolean).join(" · ");
-        const link = document.createElement("a");
-        link.className = "cay-submission-view";
-        link.href = "./?bai=" + encodeURIComponent(row.id);
-        link.textContent = "Xem trên cây";
-        item.append(details, link);
-        return item;
-      }));
-      historyStatus.textContent = rows.length ? "" : "Bạn chưa gửi bài nào.";
+      historyDialog.close();
+      message(historyStatus, "Đã lưu chỉnh sửa.", "success");
+      await refreshHistory();
+    } catch (error) {
+      if (author === accountId) message(editStatus, error.code === "22023" || error.code === "PT404"
+        ? error.message : "Chưa lưu được bài. Bạn thử lại nhé.", "error");
+    } finally {
+      historySave.disabled = historyCancel.disabled = historyBody.disabled = false;
+    }
+  });
+
+  async function refreshHistory() {
+    const author = accountId, request = ++historyRequest;
+    try {
+      const rows = await rpc("cay_student_history");
+      if (author !== accountId || request !== historyRequest) return;
+      for (const [kind, id] of [["chuc", "historyWishes"], ["nhan", "historyNotes"]]) {
+        const items = rows.filter(row => row.kind === kind);
+        $(id).replaceChildren(...items.map(renderHistoryItem));
+        $(id + "Empty").hidden = items.length > 0;
+      }
+      if (historyStatus.hasAttribute("data-error")) message(historyStatus, "");
     } catch {
-      if (author === accountId) historyStatus.textContent = "Chưa tải được danh sách bài. Bạn thử tải lại trang nhé.";
+      if (author === accountId && request === historyRequest) {
+        message(historyStatus, "Chưa tải được danh sách bài. Bạn thử tải lại trang nhé.", "error");
+      }
     }
   }
 
@@ -231,7 +323,7 @@
       draft = null;
       form.reset();
       teacher.value = destination;
-      view.href = "./?bai=" + encodeURIComponent(id);
+      view.href = receiptLink(id, messageKind);
       view.hidden = false;
       message(submissionStatus, messageKind === "nhan"
         ? "Đã gửi lời nhắn riêng vào bông hoa của bạn."

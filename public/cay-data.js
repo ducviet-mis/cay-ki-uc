@@ -521,7 +521,7 @@
     exit.addEventListener("click",() => location.assign(exitUrl));
   }
 
-  async function loadOwnSubmission(config, receipt, settings) {
+  async function loadOwnSubmission(config, receipt, settings, kind) {
     const studentClient = window.CayStudentSession?.client(settings);
     if (!studentClient) return false;
     const {data:{session}} = await studentClient.auth.getSession();
@@ -531,13 +531,15 @@
     }).maybeSingle());
     if (!item) return false;
 
+    const hasNote = !!item.story || item.photo_paths.length > 0;
+    if ((kind === "chuc" && !item.wish) || (kind === "nhan" && !hasNote)) return false;
+    const isStory = kind !== "chuc" && hasNote;
     await loadPublicTree(config,item.teacher_slug,settings);
-    const isStory = !!item.story || item.photo_paths.length > 0;
     config.ownSubmission = {
       name: item.student_name,
       title: (isStory ? "Lời nhắn riêng của " : "Lời chúc của ") + item.student_name,
       text: isStory ? item.story : item.wish,
-      photos: item.photo_paths,
+      photos: isStory ? item.photo_paths : [],
       date: noteDate.format(new Date(item.submitted_at)),
       hasStory: true
     };
@@ -634,7 +636,7 @@
       hint.textContent = "Đang mở bài gửi…";
       try {
         const validReceipt = receipt === "mine" || /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(receipt);
-        if (validReceipt && await loadOwnSubmission(config,receipt,settings)) {
+        if (validReceipt && await loadOwnSubmission(config,receipt,settings,query.get("loai"))) {
           revealPublicTree("Về biểu mẫu","./gui-bai.html?viet=1");
           return true;
         }
