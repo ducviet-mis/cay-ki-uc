@@ -6,6 +6,9 @@
   const extensions = {"image/jpeg":"jpg", "image/png":"png", "image/webp":"webp"};
   const $ = id => document.getElementById(id);
   const clean = text => String(text ?? "").trim();
+  const noteDate = new Intl.DateTimeFormat("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric"
+  });
   let client;
   let guestReady = false;
 
@@ -52,10 +55,11 @@
     const responses = await Promise.all([
       client.from("cay_teachers").select("name,class_name,letter").eq("slug",slug).maybeSingle(),
       client.from("cay_students").select("number,name,class_roster").order("number"),
-      client.from("cay_messages").select("student_number,wish,story,note_date,photo_paths").eq("teacher_slug",slug),
-      client.from("cay_gallery").select("teacher_slug,slot,season,object_path,caption,photo_date")
+      client.from("cay_messages").select("student_number,wish,note_date").eq("teacher_slug",slug),
+      client.from("cay_gallery").select("teacher_slug,slot,season,object_path,caption,photo_date"),
+      client.rpc("cay_tree_notes", {p_teacher_slug:slug})
     ]);
-    const [teacher, allStudents, messages, gallery] = responses.map(result);
+    const [teacher, allStudents, messages, gallery, notes] = responses.map(result);
     if (!teacher) throw new Error("Chưa mở được cây. Cô thử nhập lại mã nhé.");
     const photos = await galleryPhotos(gallery,slug,client);
     const classRoster = allStudents.filter(student => student.class_roster);
@@ -69,19 +73,29 @@
       const message = byStudent.get(student.number);
       return {student:index,text:message?.wish ?? "",date:message?.note_date ?? ""};
     });
-    config.bushes.items = roster.map((student,index) => {
-      const message = byStudent.get(student.number);
-      return {student:index,story:message?.story ?? "",date:message?.note_date ?? "",photos:message?.photo_paths ?? []};
-    });
+    config.bushes.items = noteItems(roster,notes,student => student.number);
     config.photos = photos;
   }
 
-  async function loadMemberRoster(slug, settings) {
+  function noteItems(roster, notes, studentNumber) {
+    const byStudent = new Map(notes.map(row => [row.student_number,row]));
+    return roster.flatMap((student,index) => {
+      const note = byStudent.get(studentNumber(student));
+      return note ? [{student:index,story:note.story,date:noteDate.format(new Date(note.submitted_at)),photos:note.photo_paths}] : [];
+    });
+  }
+
+  async function loadMembership(slug, settings) {
     const studentClient = window.CayStudentSession?.client(settings);
-    if (!studentClient) return [];
+    if (!studentClient) return null;
     const {data:{session}} = await studentClient.auth.getSession();
-    if (!session) return [];
-    return result(await studentClient.rpc("cay_member_tree_roster", {p_teacher_slug:slug}));
+    if (!session) return null;
+    const [roster, notes] = (await Promise.all([
+      studentClient.rpc("cay_member_tree_roster", {p_teacher_slug:slug}),
+      studentClient.rpc("cay_tree_notes", {p_teacher_slug:slug})
+    ])).map(result);
+    if (notes.length) client = studentClient;
+    return {roster,notes};
   }
 
   async function loadPublicTree(config, slug, settings) {
@@ -92,12 +106,12 @@
     const classSize = fetch(classSizeUrl,{headers:{apikey:publishableKey}})
       .then(response => response.ok ? response.json() : null)
       .catch(() => null);
-    const [response, photos, teachers, rosterSize, memberRoster] = await Promise.all([
+    const [response, photos, teachers, rosterSize, membership] = await Promise.all([
       fetch(endpoint,{headers:{apikey:publishableKey}}),
       loadSharedGallery(slug,url,publishableKey).catch(() => []),
       window.CAY_TEACHERS.load(),
       classSize,
-      loadMemberRoster(slug,settings).catch(() => [])
+      loadMembership(slug,settings).catch(() => null)
     ]);
     if (!response.ok) throw new Error("Chưa mở được cây công khai. Hãy tải lại trang để thử lại.");
     const wishes = await response.json();
@@ -111,11 +125,12 @@
       signature:"Tập thể lớp"
     };
     const studentCount = Number.isSafeInteger(rosterSize) && rosterSize > 0 ? rosterSize : config.students.length;
+    const memberRoster = membership?.roster ?? [];
     config.students = memberRoster.length
       ? memberRoster.map(row => row.student_name)
       : Array.from({length:Math.max(studentCount,wishes.length)},(_,i)=>"Bạn " + (i+1));
     config.wishes = (memberRoster.length ? memberRoster : wishes).map(({wish},student)=>({student,text:wish}));
-    config.bushes.items = [];
+    config.bushes.items = noteItems(memberRoster,membership?.notes ?? [],student => student.student_number);
     if (photos.length) config.photos = photos;
   }
 
@@ -229,12 +244,12 @@
       timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric"
     });
     const cells = [
-      ["co","ma_hoc_sinh","ho_ten","loi_chuc","tam_su","ngay","ma_bai_gui","so_anh"],
+      ["co","ma_hoc_sinh","ho_ten","loi_chuc","ngay","ma_bai_gui"],
       ...rows.map(row => [row.teacher_slug, "HS" + String(row.student_number).padStart(2, "0"), row.student_name,
-        row.wish, row.story, formatDate.format(new Date(row.submitted_at)), row.id, row.photo_count])
+        row.wish, formatDate.format(new Date(row.submitted_at)), row.id])
     ];
     const sheet = XLSX.utils.aoa_to_sheet(cells);
-    sheet["!cols"] = [9, 14, 26, 46, 54, 14, 39, 9].map(wch => ({wch}));
+    sheet["!cols"] = [9, 14, 26, 46, 14, 39].map(wch => ({wch}));
     const book = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(book, sheet, "Bài gửi");
     XLSX.writeFile(book, "bai-gui-cay-ki-uc.xlsx", {compression: true});
@@ -246,9 +261,9 @@
     if (!selected) throw new Error("Chọn tệp Excel hoặc CSV cần nhập.");
     const [head = [], ...records] = await workbookRows(selected);
     const columns = head.map(clean);
-    const required = ["ma_hoc_sinh","loi_chuc","tam_su"];
+    const required = ["ma_hoc_sinh","loi_chuc"];
     if (!records.length || required.some(name => !columns.includes(name))) {
-      throw new Error("Tệp cần dữ liệu và các cột ma_hoc_sinh, loi_chuc, tam_su.");
+      throw new Error("Tệp cần dữ liệu và các cột ma_hoc_sinh, loi_chuc.");
     }
     if (new Set(columns).size !== columns.length) throw new Error("Tên cột trong tệp bị trùng.");
     const linked = columns.includes("ma_bai_gui");
@@ -256,12 +271,6 @@
       throw new Error("Excel của biểu mẫu cần đủ các cột co, ho_ten và ma_bai_gui.");
     }
     if (linked && records.length > 500) throw new Error("Mỗi lượt nhập tối đa 500 bài gửi.");
-    const photoColumns = linked ? [] : ["anh_1","anh_2","anh_3"].filter(name => columns.includes(name));
-    const files = new Map();
-    for (const file of $("cayCsvPhotos").files) {
-      if (files.has(file.name)) throw new Error("Trùng tên tệp ảnh " + file.name + ".");
-      files.set(file.name,file);
-    }
     const teacherSlugs = new Set(teachers.map(teacher => teacher.slug));
     const numbers = new Set(roster.map(student => student.number));
     const keys = new Set();
@@ -277,48 +286,20 @@
         throw new Error("Dòng " + (index + 2) + " có sai số cột, mã cô/học sinh hoặc bài bị trùng.");
       }
       keys.add(key);
-      const row = {teacher_slug, student_number, wish:field("loi_chuc"), story:field("tam_su"), note_date:clean(field("ngay"))};
+      const row = {teacher_slug, student_number, wish:field("loi_chuc"), note_date:clean(field("ngay"))};
       if (linked) {
         const submission_id = clean(field("ma_bai_gui")), student_name = clean(field("ho_ten"));
         if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(submission_id) || student_name.length < 2) {
           throw new Error("Kiểm tra họ tên và mã bài gửi ở dòng " + (index + 2) + ".");
         }
-        return {row: {...row, submission_id, student_name}};
+        return {...row, submission_id};
       }
-      const names = photoColumns.map(name => clean(field(name))).filter(Boolean);
-      const images = names.map(name => {
-        if (!files.has(name)) throw new Error("Thiếu tệp " + name + " ở dòng " + (index + 2) + ".");
-        return photoFile(files.get(name));
-      });
-      return {row,images};
+      return row;
     });
     if (linked) {
-      return result(await client.rpc("cay_publish_submissions", {p_rows: items.map(({row}) => row)}));
+      return result(await client.rpc("cay_publish_submissions", {p_rows:items}));
     }
-    const oldPaths = new Map();
-    if (photoColumns.length) {
-      const current = result(await client.from("cay_messages")
-        .select("teacher_slug,student_number,photo_paths").in("teacher_slug",[...new Set(items.map(item => item.row.teacher_slug))]));
-      for (const row of current) oldPaths.set(row.teacher_slug + "/" + row.student_number,row.photo_paths);
-    }
-    const added = [];
-    try {
-      for (const {row,images} of items) {
-        if (!photoColumns.length) continue;
-        row.photo_paths = [];
-        for (const file of images) {
-          const path = await upload(file,"story");
-          row.photo_paths.push(path);
-          added.push(path);
-        }
-      }
-      result(await client.from("cay_messages").upsert(items.map(item => item.row),
-        {onConflict:"teacher_slug,student_number",defaultToNull:false}));
-    } catch (error) {
-      await removeUnused(added);
-      throw error;
-    }
-    await removeUnused(items.flatMap(({row}) => oldPaths.get(row.teacher_slug + "/" + row.student_number) ?? []));
+    result(await client.from("cay_messages").upsert(items,{onConflict:"teacher_slug,student_number",defaultToNull:false}));
     return items.length;
   }
 
@@ -554,12 +535,10 @@
     const isStory = !!item.story || item.photo_paths.length > 0;
     config.ownSubmission = {
       name: item.student_name,
-      title: (isStory ? "Tâm sự của " : "Lời chúc của ") + item.student_name,
+      title: (isStory ? "Lời nhắn riêng của " : "Lời chúc của ") + item.student_name,
       text: isStory ? item.story : item.wish,
       photos: item.photo_paths,
-      date: new Intl.DateTimeFormat("vi-VN", {
-        timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric"
-      }).format(new Date(item.submitted_at)),
+      date: noteDate.format(new Date(item.submitted_at)),
       hasStory: true
     };
     config.intro.enabled = false;
@@ -615,9 +594,9 @@
         link.href = "./loi-chuc.html";
         link.textContent = "Vào các cây";
         if (/^co-[1-4]$/.test(publicSlug)) {
-          const addMessage = $("cayAddMessage");
-          addMessage.href = "./gui-bai.html?co=" + publicSlug;
-          addMessage.hidden = false;
+          $("cayAddWish").href = "./gui-bai.html?co=" + publicSlug + "&loai=chuc";
+          $("cayAddMessage").href = "./gui-bai.html?co=" + publicSlug + "&loai=nhan";
+          $("cayAddActions").hidden = false;
         }
       } catch {
         status.textContent = "Bạn thử tải lại trang để kiểm tra tài khoản nhé.";

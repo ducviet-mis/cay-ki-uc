@@ -28,13 +28,16 @@
     .cay-entry .cay-status[data-error] { color:#ffd8cf; }
     .cay-entry .cay-status[data-success] { color:#e6d5a4; }
     .cay-submission-view { display:inline-flex; align-items:center; min-height:44px; color:#efdbaf; font-weight:600; }
+    .cay-submission-types { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+    .cay-submission-types a { padding:0 10px; border-radius:8px; text-decoration:none; }
+    .cay-submission-types a[aria-current="page"] { background:#465741; color:#ffebc2; }
     .cay-history { padding:0; list-style:none; }
     .cay-history li { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:4px 12px; border-bottom:1px solid #e2c8944a; }
   </style>
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.3/dist/umd/supabase.min.js"></script>
   <script defer src="./cay-config.js"></script>
-  <script defer src="./student-session.js?v=tree-first"></script>
-  <script defer src="./gui-bai.js?v=tree-first"></script>
+  <script defer src="./student-session.js?v=loi-nhan-2"></script>
+  <script defer src="./gui-bai.js?v=loi-nhan-2"></script>
 </head>
 <body class="cay-chooser cay-surface cay-submit" data-cay-surface>
   <main class="cay-sheet cay-entry">
@@ -55,8 +58,12 @@
       <button id="claimButton" type="submit">Xác nhận tên</button>
     </form>
     <form id="submissionForm" hidden>
-      <h2>Gửi bài cho cô</h2>
-      <p>Mọi người có thể đọc lời chúc đã duyệt. Tâm sự và ảnh đính kèm được gửi riêng cho cô.</p>
+      <nav class="cay-submission-types" aria-label="Loại bài gửi">
+        <a id="composeWish" class="cay-submission-view" href="?viet=1&amp;loai=chuc">Lời chúc công khai</a>
+        <a id="composeNote" class="cay-submission-view" href="?viet=1&amp;loai=nhan">Lời nhắn riêng</a>
+      </nav>
+      <h2 id="composeTitle"></h2>
+      <p id="composeHint"></p>
       <fieldset id="submissionFields">
         <label>Cô nhận
           <select name="teacher" required>
@@ -65,9 +72,9 @@
             <option value="co-3" data-cay-teacher="co-3">Cô Ngô Thị Phượng</option><option value="co-4" data-cay-teacher="co-4">Cô Nguyễn Thị Cẩm Nhung</option>
           </select>
         </label>
-        <label>Lời chúc<textarea name="wish" rows="3" maxlength="3000"></textarea></label>
-        <label>Tâm sự riêng<textarea name="story" rows="5" maxlength="12000"></textarea></label>
-        <label>Ảnh đính kèm (nếu có)
+        <label id="composeWishField">Lời chúc<textarea name="wish" rows="5" maxlength="3000"></textarea></label>
+        <label id="composeNoteField" hidden>Lời nhắn<textarea name="story" rows="5" maxlength="12000"></textarea></label>
+        <label id="composePhotosField" hidden>Ảnh đính kèm (nếu có)
           <input name="photos" type="file" accept="image/jpeg,image/png,image/webp" multiple>
           <small>Tối đa 3 ảnh JPG, PNG hoặc WebP, mỗi ảnh tối đa 10 MB.</small>
         </label>

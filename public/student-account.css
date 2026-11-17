@@ -106,24 +106,28 @@ body.intro-active:not([data-cay-locked]) .cay-account-dock { display: none; }
 body:has(.cay-account-dock:not([hidden])) .tools.album-entry {
   bottom: calc(max(12px, env(safe-area-inset-bottom)) + 58px);
 }
-#cayAddMessage {
+#cayAddActions {
   position: fixed;
   z-index: 8;
   right: max(12px, env(safe-area-inset-right));
   bottom: calc(max(12px, env(safe-area-inset-bottom)) + 49px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+#cayAddActions a {
   min-height: 44px;
-  background: #dec07d;
-  color: #202921;
-  border-color: #e6c98c;
   font-size: .82rem;
   font-weight: 700;
   text-decoration: none;
 }
-#cayAddMessage:hover { background: #efd093; }
-body[data-scene-mode="2d"] #cayAddMessage {
+#cayAddWish { background: #dec07d; color: #202921; border-color: #e6c98c; }
+#cayAddWish:hover { background: #efd093; }
+body[data-scene-mode="2d"] #cayAddActions {
   bottom: calc(var(--fallback-bottom, 150px) + 10px);
 }
-body[data-cay-locked] #cayAddMessage,
-body.intro-active #cayAddMessage,
-#cayAddMessage[hidden],
-#cayAddMessage[inert] { display: none; }
+body[data-cay-locked] #cayAddActions,
+body.intro-active #cayAddActions,
+#cayAddActions[hidden],
+#cayAddActions[inert] { display: none; }
