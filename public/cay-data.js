@@ -85,36 +85,28 @@
     });
   }
 
-  async function loadMembership(slug, settings) {
+  async function loadStudentNotes(slug, settings) {
     const studentClient = window.CayStudentSession?.client(settings);
-    if (!studentClient) return null;
+    if (!studentClient) return [];
     const {data:{session}} = await studentClient.auth.getSession();
-    if (!session) return null;
-    const [roster, notes] = (await Promise.all([
-      studentClient.rpc("cay_member_tree_roster", {p_teacher_slug:slug}),
-      studentClient.rpc("cay_tree_notes", {p_teacher_slug:slug})
-    ])).map(result);
+    if (!session) return [];
+    const notes = result(await studentClient.rpc("cay_tree_notes", {p_teacher_slug:slug}));
     if (notes.length) client = studentClient;
-    return {roster,notes};
+    return notes;
   }
 
   async function loadPublicTree(config, slug, settings) {
     const {url,publishableKey} = settings;
-    const endpoint = new URL("/rest/v1/cay_public_wishes",url);
-    endpoint.search = new URLSearchParams({select:"wish",teacher_slug:"eq." + slug,order:"wish.asc"});
-    const classSizeUrl = new URL("/rest/v1/rpc/cay_class_size",url);
-    const classSize = fetch(classSizeUrl,{headers:{apikey:publishableKey}})
-      .then(response => response.ok ? response.json() : null)
-      .catch(() => null);
-    const [response, photos, teachers, rosterSize, membership] = await Promise.all([
+    const endpoint = new URL("/rest/v1/rpc/cay_public_tree_roster",url);
+    endpoint.searchParams.set("p_teacher_slug",slug);
+    const [response, photos, teachers, notes] = await Promise.all([
       fetch(endpoint,{headers:{apikey:publishableKey}}),
       loadSharedGallery(slug,url,publishableKey).catch(() => []),
       window.CAY_TEACHERS.load(),
-      classSize,
-      loadMembership(slug,settings).catch(() => null)
+      loadStudentNotes(slug,settings).catch(() => [])
     ]);
     if (!response.ok) throw new Error("Chưa mở được cây công khai. Hãy tải lại trang để thử lại.");
-    const wishes = await response.json();
+    const roster = await response.json();
     config.publicView = true;
     config.teacherName = window.CAY_TEACHERS.personalName(teachers[slug]);
     config.intro.enabled = true;
@@ -124,13 +116,9 @@
       closing:"Thương mến,",
       signature:"Tập thể lớp"
     };
-    const studentCount = Number.isSafeInteger(rosterSize) && rosterSize > 0 ? rosterSize : config.students.length;
-    const memberRoster = membership?.roster ?? [];
-    config.students = memberRoster.length
-      ? memberRoster.map(row => row.student_name)
-      : Array.from({length:Math.max(studentCount,wishes.length)},(_,i)=>"Bạn " + (i+1));
-    config.wishes = (memberRoster.length ? memberRoster : wishes).map(({wish},student)=>({student,text:wish}));
-    config.bushes.items = noteItems(memberRoster,membership?.notes ?? [],student => student.student_number);
+    config.students = roster.map(row => row.student_name);
+    config.wishes = roster.map(({wish},student)=>({student,text:wish}));
+    config.bushes.items = noteItems(roster,notes,student => student.student_number);
     if (photos.length) config.photos = photos;
   }
 
