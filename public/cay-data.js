@@ -51,6 +51,21 @@
     return galleryPhotos(gallery,slug,guest);
   }
 
+  function applyTreeIntro(config, {name, letter}) {
+    config.teacherName = window.CAY_TEACHERS.personalName(name);
+    const defaults = config.intro.letter;
+    const paragraphs = Array.isArray(letter?.paragraphs)
+      ? letter.paragraphs.filter(paragraph => typeof paragraph === "string" && paragraph.trim())
+      : [];
+    config.intro.letter = {
+      greeting: clean(letter?.greeting) || defaults.greeting,
+      paragraphs: paragraphs.length ? paragraphs : defaults.paragraphs,
+      closing: clean(letter?.closing) || defaults.closing,
+      signature: clean(letter?.signature) || defaults.signature,
+      date: clean(letter?.date) || defaults.date
+    };
+  }
+
   async function loadTree(config, slug) {
     const [teacher, roster, messages, notes, photos] = await Promise.all([
       client.from("cay_teachers").select("name,class_name,letter").eq("slug",slug).maybeSingle().then(result),
@@ -61,9 +76,8 @@
         .then(response => galleryPhotos(result(response),slug,client)).catch(() => [])
     ]);
     if (!teacher) throw new Error("Chưa mở được cây. Cô thử nhập lại mã nhé.");
-    config.teacherName = window.CAY_TEACHERS.personalName(teacher.name);
+    applyTreeIntro(config,teacher);
     config.className = teacher.class_name;
-    config.intro.letter = {...config.intro.letter,...teacher.letter};
     applyTreeRoster(config, roster, notes, messages);
     config.photos = photos;
   }
@@ -95,25 +109,23 @@
 
   async function loadPublicTree(config, slug, settings) {
     const {url,publishableKey} = settings;
-    const endpoint = new URL("/rest/v1/rpc/cay_public_tree_roster",url);
-    endpoint.searchParams.set("p_teacher_slug",slug);
-    const [response, photos, teachers, notes] = await Promise.all([
-      fetch(endpoint,{headers:{apikey:publishableKey}}),
+    async function readPublicTreeData(rpc) {
+      const endpoint = new URL("/rest/v1/rpc/" + rpc,url);
+      endpoint.searchParams.set("p_teacher_slug",slug);
+      const response = await fetch(endpoint,{headers:{apikey:publishableKey}});
+      if (!response.ok) throw new Error("Chưa mở được cây công khai. Hãy tải lại trang để thử lại.");
+      return response.json();
+    }
+    const [roster, photos, [teacher], notes] = await Promise.all([
+      readPublicTreeData("cay_public_tree_roster"),
       loadSharedGallery(slug,url,publishableKey).catch(() => []),
-      window.CAY_TEACHERS.load(),
+      readPublicTreeData("cay_public_tree_intro"),
       loadStudentNotes(slug,settings).catch(() => [])
     ]);
-    if (!response.ok) throw new Error("Chưa mở được cây công khai. Hãy tải lại trang để thử lại.");
-    const roster = await response.json();
+    if (!teacher) throw new Error("Chưa tìm thấy cây.");
     config.publicView = true;
-    config.teacherName = window.CAY_TEACHERS.personalName(teachers[slug]);
     config.intro.enabled = true;
-    config.intro.letter = {
-      greeting:"Kính gửi cô [TÊN CÔ],",
-      paragraphs:["Cảm ơn cô vì những ngày tháng cùng lớp. Mỗi tấm thiệp trên cây là một lời chúc chúng em gửi cô."],
-      closing:"Thương mến,",
-      signature:"Tập thể lớp"
-    };
+    applyTreeIntro(config,teacher);
     applyTreeRoster(config, roster, notes);
     if (photos.length) config.photos = photos;
   }
