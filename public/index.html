@@ -1583,11 +1583,17 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     addText(byId("letterDate"),data.date);
     byId("letterDate").hidden=!String(data.date??"").trim();
     addText(byId("letterGreeting"),String(data.greeting??"").replaceAll("[TÊN CÔ]",()=>teacher));
-    for(const text of data.paragraphs??[]) {
+    const paragraphs=data.paragraphs??[];
+    const normalizeClosing=value=>String(value??"").normalize("NFC").trim().toLocaleLowerCase("vi")
+      .replace(/[\s,.;:!?…]+$/u,"").replace(/\s+/gu," ");
+    const lastLine=String(paragraphs.at(-1)??"").trimEnd().split(/\r\n?|\n/).at(-1);
+    const repeatsClosing=normalizeClosing(lastLine)===normalizeClosing(data.closing);
+    for(const text of paragraphs) {
       const paragraph=document.createElement("p"); byId("letterBody").append(paragraph);
       addText(paragraph,text);
     }
-    addText(byId("letterClosing"),data.closing);
+    const closing=byId("letterClosing");
+    addText(closing,repeatsClosing?"":data.closing);
     signature.textContent=data.signature??"";
     byId("letterSign").hidden=!signature.textContent.trim();
     const total=segments.reduce((n,part)=>n+part.chars.length,0);
@@ -1653,7 +1659,8 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
         prepareWorld();
         return;
       }
-      const sign=byId("letterSign").hidden ? byId("letterClosing").getBoundingClientRect() : signature.getBoundingClientRect();
+      const finalLine=closing.hidden ? byId("letterBody").lastElementChild ?? byId("letterGreeting") : closing;
+      const sign=(byId("letterSign").hidden ? finalLine : signature).getBoundingClientRect();
       const paper=letter.querySelector(".story-paper").getBoundingClientRect(), scrollBox=scroll.getBoundingClientRect();
       state.seedAnchor={
         x:cap(sign.left+sign.width*.55,paper.left+18,paper.right-18),
