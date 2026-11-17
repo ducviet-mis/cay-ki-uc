@@ -75,7 +75,7 @@
     $("composeTitle").textContent = privateNote ? "Thêm lời nhắn riêng" : "Thêm lời chúc";
     $("composeHint").textContent = privateNote
       ? "Chỉ bạn và cô nhận có thể đọc lời nhắn và mở ảnh. Bài gửi sẽ hiện ở bông hoa của bạn."
-      : "Mọi người có thể đọc lời chúc trên cây sau khi bài được duyệt.";
+      : "Lời chúc hiện công khai trên cây ngay khi bạn gửi thành công.";
     $("composeWishField").hidden = privateNote;
     $("composeNoteField").hidden = $("composePhotosField").hidden = !privateNote;
     form.elements.namedItem("wish").required = !privateNote;
@@ -93,7 +93,7 @@
         const details = document.createElement("span");
         const name = [...teacher.options].find(option => option.value === row.teacher_slug)?.textContent.trim();
         details.textContent = [name, dateFormat.format(new Date(row.submitted_at)),
-          row.published_at ? "Đã lên cây" : "Chờ đưa lên cây"].filter(Boolean).join(" · ");
+          row.published_at ? "Đã lên cây" : "Đã gửi"].filter(Boolean).join(" · ");
         const link = document.createElement("a");
         link.className = "cay-submission-view";
         link.href = "./?bai=" + encodeURIComponent(row.id);
@@ -235,7 +235,7 @@
       view.hidden = false;
       message(submissionStatus, messageKind === "nhan"
         ? "Đã gửi lời nhắn riêng vào bông hoa của bạn."
-        : "Đã gửi lời chúc để duyệt.", "success");
+        : "Lời chúc đã xuất hiện trên cây.", "success");
       view.focus();
       await refreshHistory();
     } catch (error) {
