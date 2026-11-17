@@ -18,9 +18,9 @@ Người quản lý bấm **Trang quản lý** hoặc mở địa chỉ website 
 
 ## Đưa nội dung lên cây
 
-Mục **Xem lời chúc** trên trang chủ cho khách chọn cây, mở phong thư với lời mở đầu chung rồi đọc thiệp từ cột `loi_chuc` trên cây 3D mà không cần mã. Khi chạm vào tâm sự, khách thấy yêu cầu nhập mã của cô. Tâm sự, thư riêng và ảnh chỉ xem được khi mở cây bằng mã tương ứng.
+Mục **Xem lời chúc** trên trang chủ cho khách chọn cây, đọc thư mở đầu của lớp và xem thiệp trên cây 3D. Cây của giáo viên cũng dùng thư mở đầu đã lưu trong trang quản lý. Khi trang quản lý chưa có thư, cả hai chế độ dùng lời tri ân mặc định. Lời nhắn cá nhân và ảnh đính kèm có quyền xem riêng.
 
-- **Tên cô và thư mở đầu**. Điền tên dùng sau chữ “Cô”, tên lớp và thư riêng của từng cô. Xuống hai dòng để tách đoạn.
+- **Tên cô và thư mở đầu**. Điền tên dùng sau chữ “Cô”, tên lớp và thư mở đầu gửi từng cô. Xuống hai dòng để tách đoạn.
 - **Danh sách lớp**. Mỗi dòng gồm mã số, dấu phẩy và tên. Giữ mã số của học sinh khi sửa tên vì bài gửi được nối theo mã này.
 - **Ảnh lớp**. Chọn cả bốn cây hoặc một cây, giá ảnh từ 1 đến 14 và mùa. Mục “Cả bốn mùa” là ảnh mặc định cho giá. Ảnh riêng của một cô ưu tiên trên cây của cô đó. Dùng **Thư mục ảnh chung** để tải nhiều ảnh theo thứ tự tên tệp lên các giá còn trống cho cả bốn cây. Khung tự đổi theo tỷ lệ và giữ trọn ảnh.
 - **Bài gửi**. Từ bảng câu trả lời Google Form, chuẩn bị CSV UTF-8 theo cột trong `mau-bai-gui.csv`. Mã học sinh có thể là số hoặc dạng `HS01`. Cột `co` nhận `co-1` đến `co-4`. Ô cô trống dùng cây đã chọn trước khi nhập. Mỗi CSV chỉ chứa một dòng cho mỗi cặp cô–học sinh.
