@@ -87,6 +87,14 @@ button:focus-visible, input:focus-visible, [role=slider]:focus-visible { outline
 #view { background: radial-gradient(ellipse at 42% 45%, #87706a, #252c31 73%); touch-action: none; cursor: grab }
 #view:active { cursor: grabbing }
 #view canvas { display: block; width: 100%; height: 100% }
+#sceneLoading {
+  position: fixed; inset: 0; z-index: 6; display: grid; place-items: center; margin: 0;
+  padding: 16px; background: radial-gradient(ellipse at 50% 42%, #29352b, #141b18 74%);
+  color: var(--ink); text-align: center; font-size: 14px;
+}
+body:has(#sceneLoading:not([hidden])) :is(header,.tools,#timeline,#treeDedication,#bushProgress,#cayAddActions) {
+  visibility: hidden;
+}
 #shade { pointer-events: none; background: linear-gradient(#141712a8, transparent 25%, transparent 64%, #111712a8), radial-gradient(ellipse at 50% 44%, transparent 37%, #0e131665 100%); transition: opacity .3s }
 body.simple #shade { opacity: .58 }
 .glass { border: 1px solid var(--line); background: var(--glass); box-shadow: 0 12px 42px #080c1038; -webkit-backdrop-filter: blur(15px); backdrop-filter: blur(15px) }
@@ -696,6 +704,7 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
   <img alt="Ảnh đính kèm tâm sự">
 </dialog>
 <div id="view" aria-label="Cây Tri Ân Bốn Mùa trong không gian 3D"></div>
+<p id="sceneLoading" role="status" hidden>Đang mở cây 3D…</p>
 <section id="fallbackScene" aria-label="Cây Tri Ân Bốn Mùa" hidden>
   <canvas id="fallbackCanvas" aria-hidden="true"></canvas>
   <div id="fallbackDock" class="glass">
@@ -1389,6 +1398,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
 
   function setupIntro(bootScene) {
     const cfg=CONFIG.intro, sound=setupSound(), overlay=byId("intro"), body=document.body;
+    const loading=byId("sceneLoading");
     storySound=sound;
     const envelope=byId("envelopeStage"), letter=byId("letterStage"), scroll=byId("letterScroll");
     const skipButton=byId("introSkip"), continueButton=byId("letterNext"), openButton=byId("openEnvelope");
@@ -1413,7 +1423,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       ready:false, failed:null, warming:false, queued:false, last:0, note:0, nextNote:0,
       writeDone:false, readSince:0, manuallyScrolledUntil:0, seedAnchor:null, skippedAt:0
     };
-    let engine=null, worldAttempt=null, continueTimer=0;
+    let engine=null, worldAttempt=null, continueTimer=0, focusScene=false;
     const fallback=setupFallback(cfg.enabled ? endSeason : 0,()=>prepareWorld(true));
     const story={
       state,timings,endSeason,sound,lowMotion,showPhotos:fallback.showPhotos,
@@ -1439,6 +1449,11 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       onContextRestored() {
         state.ready=true; state.failed=null;
         fallback.update(null,false,true);
+      },
+      onSceneDrawn() {
+        if(loading.hidden) return;
+        loading.hidden=true;
+        focusClassButton();
       }
     };
 
@@ -1465,15 +1480,28 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       state.queued=true; requestAnimationFrame(tick);
     }
     function wake() { state.last=0; schedule(); }
-    function showFallback() {
+    function showLoading() {
+      if(!loading.hidden) return;
+      body.dataset.sceneMode="loading";
+      loading.hidden=false;
+    }
+    function showFallback(moveFocus=false) {
       body.dataset.sceneMode="2d";
+      loading.hidden=true;
       fallback.show();
       fallback.update(state.failed,!!worldAttempt,state.ready);
+      if((moveFocus || focusScene) && !reader.open) fallback.focus();
+      focusScene=false;
+    }
+    function focusClassButton() {
+      if(focusScene && !reader.open) byId("classButton").focus({preventScroll:true});
+      focusScene=false;
     }
     function show3D(moveFocus=false) {
       body.dataset.sceneMode="3d";
       fallback.hide();
-      if(moveFocus) byId("classButton").focus({preventScroll:true});
+      focusScene ||= moveFocus;
+      if(loading.hidden) focusClassButton();
     }
     function clearContinue() {
       clearTimeout(continueTimer); continueTimer=0;
@@ -1508,6 +1536,8 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
           const readingFallback=byId("fallbackPanel").open || state.review;
           if(!readingFallback && (!reader.open || CONFIG.ownSubmission)) show3D(retry);
           state.warming=state.stage===STAGES.LETTER && !state.skipping && !waiting;
+        } else if(body.dataset.sceneMode==="loading") {
+          showFallback();
         }
         fallback.update(state.failed,false,state.ready);
         if(waiting && !state.skipping && state.stage===STAGES.LETTER) {
@@ -1638,12 +1668,11 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       body.classList.remove("intro-active");
       body.style.removeProperty("--intro-title"); body.style.removeProperty("--intro-hud");
       muteWorld(false); sound.bed(0,true);
-      if(state.ready) {
-        show3D();
-        byId("classButton").focus({preventScroll:true});
-      } else {
-        showFallback();
-        fallback.focus();
+      if(state.ready) show3D(true);
+      else if(state.failed) showFallback(true);
+      else {
+        focusScene=true;
+        showLoading();
       }
     }
     function skipIntro() {
@@ -1660,7 +1689,10 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       const t=state.skippedAt, veil=ease(0,.32,t)*(1-ease(.46,1.27,t));
       overlay.style.setProperty("--skip-veil",String(veil));
       if(t>=.32) {
-        if(!state.ready && body.dataset.sceneMode!=="2d") showFallback();
+        if(!state.ready && body.dataset.sceneMode!=="2d") {
+          if(state.failed) showFallback();
+          else showLoading();
+        }
         envelope.hidden=true; letter.hidden=true; mote.style.opacity="0";
         overlay.style.setProperty("--veil","0");
         overlay.querySelectorAll(".paper-mote").forEach(node=>node.remove());
@@ -1800,7 +1832,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     if(cfg.enabled) {muteWorld(true); setStage(STAGES.ENVELOPE,true);}
     else {
       overlay.hidden=true; body.classList.remove("intro-active"); setStage(STAGES.EXPLORE,true);
-      prepareWorld(); showFallback();
+      showLoading(); prepareWorld();
     }
     return story;
   }
@@ -5306,7 +5338,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     if(hover?.type==="bush") positionBushHint(hover);
     if (inExplore && !story.state.review) { story.sound.bed(0,true); ambient(); }
     if(inExplore && !story.state.review) adaptQuality(now,elapsed);
-    if (!lost) { paintShadows(); draw(); story.state.warming=false; }
+    if (!lost) { paintShadows(); draw(); story.state.warming=false; story.onSceneDrawn(); }
     raf=requestAnimationFrame(frame);
   }
   raf=requestAnimationFrame(frame);
