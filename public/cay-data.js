@@ -607,6 +607,19 @@
     void restoreAccount();
   }
 
+  function setupAdminBackLinks() {
+    const loginBack = $("cayAdminLoginBack");
+    loginBack.hidden = false;
+    if (!document.referrer) return;
+
+    const previous = new URL(document.referrer);
+    const pages = ["./", "./index.html", "./loi-chuc.html", "./gui-bai.html"];
+    if (previous.origin !== location.origin || previous.searchParams.get("admin") === "1" ||
+        !pages.some(page => new URL(page, location.href).pathname === previous.pathname)) return;
+
+    loginBack.href = $("cayAdminBack").href = previous.href;
+  }
+
   async function start(config) {
     const query = new URLSearchParams(location.search);
     const admin = query.get("admin") === "1";
@@ -618,9 +631,13 @@
     const settings = window.CAY_SUPABASE;
     const siteName = config.siteName || "Cây Kí Ức";
     $("cayLoginTitle").textContent = admin ? "Quản lý " + siteName : siteName;
-    if (admin) $("cayLoginHint").textContent = "Nhập mã quản lý để thêm ảnh lớp và chỉnh nội dung.";
+    if (admin) {
+      $("cayLoginHint").textContent = "Nhập mã quản lý để thêm ảnh lớp và chỉnh nội dung.";
+      setupAdminBackLinks();
+    } else {
+      setupStudentEntry(settings, receipt === null, receipt === null ? publicSlug : "");
+    }
     $("cayAdminLink").hidden = admin;
-    if (!admin) setupStudentEntry(settings, receipt === null, receipt === null ? publicSlug : "");
     $("cayPasswordLabel").textContent = admin ? "Mã quản lý" : "Mã của cô giáo";
     $("cayLoginSubmit").textContent = admin ? "Mở trang quản lý" : "Mở cây";
     password.inputMode = admin ? "numeric" : "text";

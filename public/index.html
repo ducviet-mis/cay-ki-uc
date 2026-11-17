@@ -552,7 +552,7 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
   body:not([data-scene-mode="2d"]) #bushProgress { top: calc(max(12px,env(safe-area-inset-top)) + 100px); left: 12px; transform: none }
 }
 </style>
-<link id="fontStyles" rel="stylesheet" href="./cay-portal.css" media="all">
+<link id="fontStyles" rel="stylesheet" href="./cay-portal.css?v=quay-lai-quan-ly" media="all">
 <link rel="stylesheet" href="./student-account.css?v=loi-nhan-2">
 <link rel="stylesheet" href="./cay-landscape.css">
 </head>
@@ -613,13 +613,20 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
       <button id="cayLoginSubmit" type="submit" disabled>Mở cây</button>
     </form>
     <nav class="cay-row" aria-label="Lối vào khác">
+      <a id="cayAdminLoginBack" class="cay-admin-back" href="./?dang-nhap=1" hidden><span aria-hidden="true">←</span> Quay lại</a>
       <a class="cay-link" id="cayPublicLink" href="./loi-chuc.html">Xem lời chúc</a>
       <a id="cayAdminLink" href="?admin=1" hidden>Trang quản lý</a>
     </nav>
     <button id="cayStoryReplay" type="button" hidden>Xem lại phần mở đầu</button>
   </section>
   <section id="cayAdmin" class="cay-sheet" hidden aria-labelledby="cayAdminTitle">
-    <header><h1 id="cayAdminTitle" data-cay-site-name data-cay-prefix="Quản lý ">Quản lý Cây Kí Ức</h1><button id="cayAdminSignout">Đăng xuất</button></header>
+    <header>
+      <h1 id="cayAdminTitle" data-cay-site-name data-cay-prefix="Quản lý ">Quản lý Cây Kí Ức</h1>
+      <div class="cay-row">
+        <a id="cayAdminBack" class="cay-admin-back" href="./?dang-nhap=1"><span aria-hidden="true">←</span> Quay lại</a>
+        <button id="cayAdminSignout" type="button">Đăng xuất</button>
+      </div>
+    </header>
     <div class="cay-admin-grid">
     <details open>
       <summary><strong>Ảnh lớp</strong></summary>
@@ -833,7 +840,7 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.3/dist/umd/supabase.min.js"></script>
 <script src="./cay-config.js"></script>
 <script src="./student-session.js?v=tree-first"></script>
-<script src="./cay-data.js?v=danh-sach-giao-vien"></script>
+<script src="./cay-data.js?v=quay-lai-quan-ly"></script>
 <script>
 (async () => {
   "use strict";
