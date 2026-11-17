@@ -546,6 +546,7 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
 </style>
 <link id="fontStyles" rel="stylesheet" href="./cay-portal.css" media="all">
 <link rel="stylesheet" href="./student-account.css?v=loi-nhan-2">
+<link rel="stylesheet" href="./cay-landscape.css">
 </head>
 <body class="intro-active" data-cay-locked>
 
@@ -676,8 +677,11 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
 <script>window.CayPresentation?.mount(CONFIG);</script>
 <button id="cayExit" class="button glass" hidden>Đăng xuất</button>
 <nav id="cayAddActions" aria-label="Gửi lời tri ân" hidden>
-  <a id="cayAddWish" class="button glass" href="./gui-bai.html?viet=1&amp;loai=chuc">Thêm lời chúc</a>
-  <a id="cayAddMessage" class="button glass" href="./gui-bai.html?viet=1&amp;loai=nhan">Thêm lời nhắn riêng</a>
+  <button id="caySendToggle" class="button glass" type="button" aria-expanded="false" aria-controls="caySendOptions">Gửi bài</button>
+  <div id="caySendOptions">
+    <a id="cayAddWish" class="button glass" href="./gui-bai.html?viet=1&amp;loai=chuc">Thêm lời chúc</a>
+    <a id="cayAddMessage" class="button glass" href="./gui-bai.html?viet=1&amp;loai=nhan">Thêm lời nhắn riêng</a>
+  </div>
 </nav>
 <aside id="studentAccount" class="cay-account-dock" aria-label="Tài khoản học sinh" hidden>
   <div>
@@ -838,6 +842,24 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
     ENVELOPE:STAGES.LETTER, LETTER:STAGES.SEED, SEED:STAGES.GROW, GROW:STAGES.REVEAL, REVEAL:STAGES.EXPLORE
   };
   const byId = id=>document.getElementById(id);
+  const sendToggle=byId("caySendToggle");
+  const sendExpanded=()=>sendToggle.getAttribute("aria-expanded")==="true";
+  const closeSendOptions=()=>sendToggle.setAttribute("aria-expanded","false");
+  matchMedia("(orientation: landscape) and (max-width: 1024px) and (max-height: 520px)")
+    .addEventListener("change",closeSendOptions);
+  sendToggle.addEventListener("click",()=>sendToggle.setAttribute("aria-expanded",String(!sendExpanded())));
+  document.addEventListener("pointerdown",event=>{
+    if(sendExpanded() && !byId("cayAddActions").contains(event.target)) closeSendOptions();
+  });
+  document.addEventListener("keydown",event=>{
+    if(event.key!=="Escape" || !sendExpanded()) return;
+    closeSendOptions();
+    if(sendToggle.getClientRects().length) {
+      event.preventDefault();
+      event.stopPropagation();
+      sendToggle.focus({preventScroll:true});
+    }
+  });
   const cap = (value,min=0,max=1)=>Math.max(min,Math.min(max,value));
   const ease = (a,b,value)=>{
     const p=cap((value-a)/(b-a));
@@ -4747,12 +4769,21 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     return Math.min(deviceRatio,Math.sqrt(budget/(width*height)),
       Math.min(viewportLimit[0],bufferLimit)/width,Math.min(viewportLimit[1],bufferLimit)/height);
   }
+  let previousWideLayout;
   function resize() {
     const w=Math.max(1,innerWidth),h=Math.max(1,innerHeight);
+    const wideLayout=w>h && w<=1024 && h<=520;
+    if(previousWideLayout!==undefined && previousWideLayout!==wideLayout) {
+      for(const pointer of pointers.keys()) {
+        if(view.hasPointerCapture(pointer)) view.releasePointerCapture(pointer);
+      }
+      pointers.clear(); pressedItem=null; parallax.set(0,0); showHover(null); touchScene();
+    }
+    previousWideLayout=wideLayout;
     const dpr=renderPixelRatio(w,h);
     renderer.setDrawingBufferSize(w,h,dpr);
     camera.aspect=w/h;
-    camera.fov=2*Math.atan(Math.tan(43*Math.PI/360)*stageRatio())*180/Math.PI;
+    camera.fov=2*Math.atan(Math.tan((wideLayout ? 47 : 43)*Math.PI/360)*stageRatio())*180/Math.PI;
     camera.updateProjectionMatrix();
     flowerFocal.value=h*.5*camera.projectionMatrix.elements[5];
     if(qualityTier<3 && (effects || !low)) {
