@@ -84,6 +84,20 @@
   cursor: pointer;
 }
 .cay-account-dock button:hover { background: #3c4934; }
+.cay-account-dock:has(.cay-admin-shortcut) { gap: 4px; }
+.cay-admin-shortcut {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  min-height: 44px;
+  padding-inline: 7px;
+  border-radius: 9px;
+  color: #f1d394;
+  font-size: .75rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.cay-admin-shortcut:hover { background: #3c4934; }
 .cay-account-dock p { margin: 2px 0; font-size: .7rem; }
 .cay-account-dock p:empty { display: none; }
 body[data-cay-locked] > #studentAccount { visibility: visible; }

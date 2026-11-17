@@ -685,6 +685,22 @@
       $("cayLoginSubmit").disabled = true;
       return false;
     }
+    if (admin) {
+      const student = window.CayStudentSession;
+      const googleClient = student?.client(settings);
+      if (googleClient) {
+        try {
+          const {data:{session}} = await googleClient.auth.getSession();
+          if (session && await student.isAdmin(googleClient)) {
+            client = googleClient;
+            await openAdmin();
+            return false;
+          }
+        } catch {
+          status.textContent = "Chưa mở được quản lý bằng Google. Bạn thử tải lại trang hoặc nhập mã quản lý.";
+        }
+      }
+    }
     client = window.supabase.createClient(settings.url,settings.publishableKey,{
       auth:{persistSession:false,autoRefreshToken:true,detectSessionInUrl:false}
     });
