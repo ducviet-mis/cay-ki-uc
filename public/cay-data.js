@@ -52,16 +52,15 @@
   }
 
   async function loadTree(config, slug) {
-    const responses = await Promise.all([
-      client.from("cay_teachers").select("name,class_name,letter").eq("slug",slug).maybeSingle(),
-      client.from("cay_students").select("number,name,class_roster").order("number"),
-      client.from("cay_messages").select("student_number,wish,note_date").eq("teacher_slug",slug),
-      client.from("cay_gallery").select("teacher_slug,slot,season,object_path,caption,photo_date"),
-      client.rpc("cay_tree_notes", {p_teacher_slug:slug})
+    const [teacher, allStudents, messages, notes, photos] = await Promise.all([
+      client.from("cay_teachers").select("name,class_name,letter").eq("slug",slug).maybeSingle().then(result),
+      client.from("cay_students").select("number,name,class_roster").order("number").then(result),
+      client.from("cay_messages").select("student_number,wish,note_date").eq("teacher_slug",slug).then(result),
+      client.rpc("cay_tree_notes", {p_teacher_slug:slug}).then(result),
+      client.from("cay_gallery").select("teacher_slug,slot,season,object_path,caption,photo_date")
+        .then(response => galleryPhotos(result(response),slug,client)).catch(() => [])
     ]);
-    const [teacher, allStudents, messages, gallery, notes] = responses.map(result);
     if (!teacher) throw new Error("Chưa mở được cây. Cô thử nhập lại mã nhé.");
-    const photos = await galleryPhotos(gallery,slug,client);
     const classRoster = allStudents.filter(student => student.class_roster);
     const roster = classRoster.length ? classRoster : allStudents;
     const byStudent = new Map(messages.map(row => [row.student_number,row]));
@@ -69,6 +68,7 @@
     config.className = teacher.class_name;
     config.intro.letter = {...config.intro.letter,...teacher.letter};
     config.students = roster.map(student => student.name);
+    config.studentNumbers = roster.map(student => student.number);
     config.wishes = roster.map((student,index) => {
       const message = byStudent.get(student.number);
       return {student:index,text:message?.wish ?? "",date:message?.note_date ?? ""};
@@ -117,6 +117,7 @@
       signature:"Tập thể lớp"
     };
     config.students = roster.map(row => row.student_name);
+    config.studentNumbers = roster.map(row => row.student_number);
     config.wishes = roster.map(({wish},student)=>({student,text:wish}));
     config.bushes.items = noteItems(roster,notes,student => student.student_number);
     if (photos.length) config.photos = photos;
@@ -190,8 +191,11 @@
   }
 
   async function workbookRows(file) {
+    if (file.size > 6 * 1024 * 1024) {
+      throw new Error("Chọn tệp Excel .xlsx hoặc CSV, tối đa 6 MB.");
+    }
     if (/\.csv$/i.test(file.name)) return parseCsv(await file.text());
-    if (!/\.xlsx$/i.test(file.name) || file.size > 6 * 1024 * 1024) {
+    if (!/\.xlsx$/i.test(file.name)) {
       throw new Error("Chọn tệp Excel .xlsx hoặc CSV, tối đa 6 MB.");
     }
     const XLSX = await loadWorkbook();
@@ -225,19 +229,19 @@
   }
 
   async function exportMessages() {
-    const rows = result(await client.rpc("cay_export_submissions"));
-    if (!rows.length) return "Chưa có bài mới để xuất.";
+    const rows = result(await client.rpc("cay_export_current_wishes"));
+    if (!rows.length) return "Chưa có lời chúc để xuất.";
     const XLSX = await loadWorkbook();
     const formatDate = new Intl.DateTimeFormat("vi-VN", {
       timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric"
     });
     const cells = [
-      ["co","ma_hoc_sinh","ho_ten","loi_chuc","ngay","ma_bai_gui"],
+      ["co","ma_hoc_sinh","ho_ten","loi_chuc","ngay","ma_bai_gui","phien_ban"],
       ...rows.map(row => [row.teacher_slug, "HS" + String(row.student_number).padStart(2, "0"), row.student_name,
-        row.wish, formatDate.format(new Date(row.submitted_at)), row.id])
+        row.wish, clean(row.note_date) || formatDate.format(new Date(row.submitted_at)), row.id, row.revision])
     ];
     const sheet = XLSX.utils.aoa_to_sheet(cells);
-    sheet["!cols"] = [9, 14, 26, 46, 14, 39].map(wch => ({wch}));
+    sheet["!cols"] = [9, 14, 26, 46, 14, 39, 34].map(wch => ({wch}));
     const book = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(book, sheet, "Bài gửi");
     XLSX.writeFile(book, "bai-gui-cay-ki-uc.xlsx", {compression: true});
@@ -258,7 +262,8 @@
     if (linked && (!columns.includes("ho_ten") || !columns.includes("co"))) {
       throw new Error("Excel của biểu mẫu cần đủ các cột co, ho_ten và ma_bai_gui.");
     }
-    if (linked && records.length > 500) throw new Error("Mỗi lượt nhập tối đa 500 bài gửi.");
+    if (records.length > 500) throw new Error("Mỗi lượt nhập tối đa 500 bài gửi.");
+    const versioned = linked && columns.includes("phien_ban");
     const teacherSlugs = new Set(teachers.map(teacher => teacher.slug));
     const numbers = new Set(roster.map(student => student.number));
     const keys = new Set();
@@ -280,7 +285,11 @@
         if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(submission_id) || student_name.length < 2) {
           throw new Error("Kiểm tra họ tên và mã bài gửi ở dòng " + (index + 2) + ".");
         }
-        return {...row, submission_id};
+        const revision = versioned ? clean(field("phien_ban")) : null;
+        if (versioned && !/^[a-f0-9]{32}$/.test(revision)) {
+          throw new Error("Giữ nguyên cột phiên bản của Excel đã xuất ở dòng " + (index + 2) + ".");
+        }
+        return {...row, submission_id, revision};
       }
       return row;
     });
@@ -301,14 +310,20 @@
   }
 
   function action(form, status, run, pending = "Đang lưu…") {
+    let running = false;
     form.addEventListener("submit",async event => {
       event.preventDefault();
+      if (running) return;
+      running = true;
       const controls = [...form.elements].filter(control => !control.disabled);
       controls.forEach(control => control.disabled = true);
       status.textContent = pending;
       try { status.textContent = await run(event); }
       catch (error) { status.textContent = error.message || "Thao tác chưa hoàn tất."; }
-      finally { controls.forEach(control => control.disabled = false); }
+      finally {
+        controls.forEach(control => control.disabled = false);
+        running = false;
+      }
     });
   }
 
@@ -677,7 +692,6 @@
     return new Promise(resolve => {
       action(form,status,async () => {
         const access = await unlock(password.value,admin);
-        password.value = "";
         if (admin) {
           try {
             await openAdmin();
@@ -695,6 +709,7 @@
           $("cayExit").addEventListener("click",signOut);
           resolve(true);
         }
+        password.value = "";
         return "";
       },admin ? "Đang mở trang quản lý…" : "Đang mở cây…");
     });

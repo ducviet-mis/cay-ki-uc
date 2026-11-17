@@ -636,14 +636,14 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
     </details>
     <details>
       <summary><strong>Quản lý lời chúc công khai</strong></summary>
-      <p><a class="cay-link" href="./gui-bai.html" target="_blank" rel="noopener">Mở biểu mẫu gửi cho lớp</a></p>
+      <p><a class="cay-link" href="./gui-bai.html?viet=1" target="_blank" rel="noopener">Mở biểu mẫu gửi cho lớp</a></p>
       <form id="cayExport">
         <button type="submit">Xuất lời chúc ra Excel</button>
         <p id="cayExportStatus" class="cay-status" role="status"></p>
       </form>
       <form id="cayImport">
         <label>Tệp bài gửi<input type="file" id="cayCsv" accept=".xlsx,.csv" required></label>
-        <p>Lời chúc tự lên cây khi học sinh gửi. Dùng Excel để chỉnh lời chúc đã đăng.</p>
+        <p>Dùng Excel vừa xuất để chỉnh lời chúc đã đăng. Giữ nguyên cột phiên bản để tránh ghi đè thay đổi mới.</p>
         <details>
           <summary>Tùy chọn khi nhập tệp tự soạn</summary>
           <label>Cây nhận mặc định<select id="cayImportTeacher" name="teacher"></select></label>
@@ -754,7 +754,7 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
 <aside id="roster" class="glass" aria-labelledby="rosterTitle" hidden>
   <div class="panel-head"><h2 id="rosterTitle">Danh sách lớp</h2><button class="button" id="closeList">Đóng</button></div>
   <input type="search" id="search" placeholder="Tìm tên học sinh" aria-label="Tìm tên học sinh" autocomplete="off">
-  <ol id="names"></ol><button class="button" id="all">Xem tất cả</button>
+  <ol id="names"></ol><button class="button" id="all">Đọc các lời chúc</button>
 </aside>
 <div id="hint" class="glass" hidden></div>
 <div id="detail" role="dialog" aria-modal="true" aria-label="Kỷ niệm" hidden>
@@ -824,7 +824,7 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.3/dist/umd/supabase.min.js"></script>
 <script src="./cay-config.js"></script>
 <script src="./student-session.js?v=tree-first"></script>
-<script src="./cay-data.js?v=danh-sach-cong-khai"></script>
+<script src="./cay-data.js?v=kiem-thu-luong"></script>
 <script>
 (async () => {
   "use strict";
@@ -1103,16 +1103,19 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       const normalize=name=>name.toLowerCase().normalize("NFD").replace(/\p{M}/gu,"").replace(/đ/g,"d");
       const rows=studentStories.map(({name,index,hasStory})=>{
         const row=document.createElement("li");
-        row.value=index+1;
-        if(bushConfig?.enabled) {
-          const line=make("div",""), main=button(name,()=>showStory(index));
+        row.value=CONFIG.studentNumbers?.[index] ?? index+1;
+        const readNote=!!bushConfig?.enabled && !CONFIG.publicView;
+        const goToWish=()=>showWish(index,name), goToNote=()=>showStory(index);
+        if(readNote || hasStory) {
+          const line=make("div",""), main=button(name,readNote ? goToNote : goToWish);
           line.className="student-line";
-          main.classList.toggle("empty",!hasStory);
-          if(hasStory) markStudentStory(main);
-          const wish=button("Lời chúc",()=>showWish(index,name));
-          wish.classList.add("wish-link"); wish.setAttribute("aria-label",`Lời chúc của ${name}`);
-          line.append(main,wish); row.append(line);
-        } else row.append(button(name,()=>showWish(index,name)));
+          main.classList.toggle("empty",readNote ? !hasStory : !wishes.get(index)?.text?.trim());
+          if(readNote && hasStory) markStudentStory(main);
+          const label=readNote ? "Lời chúc" : "Lời nhắn";
+          const secondary=button(label,readNote ? goToWish : goToNote);
+          secondary.classList.add("wish-link"); secondary.setAttribute("aria-label",`${label} của ${name}`);
+          line.append(main,secondary); row.append(line);
+        } else row.append(button(name,goToWish));
         list.append(row);
         return {row,name:normalize(name)};
       });
@@ -4887,26 +4890,25 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
   }
   const normalize=name=>name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/đ/g,"d");
   const list=$("names");
+  const publishedTags=tags.filter(item=>item.wish.text?.trim());
   const rows=tags.map(item=>{
     const li=document.createElement("li"), button=document.createElement("button"), number=document.createElement("span");
-    number.className="number"; number.textContent=String(item.index+1).padStart(2,"0");
+    number.className="number"; number.textContent=String(CONFIG.studentNumbers?.[item.index] ?? item.index+1).padStart(2,"0");
     button.append(number,document.createTextNode(item.name));
     const bush=bushes[item.index], goToWish=()=>{ queue=[]; flyTo(item); };
-    if(bush) {
+    const readNote=!!bush && !CONFIG.publicView;
+    const goToNote=()=>visitBush(item.index);
+    button.classList.toggle("empty",readNote ? !bush.hasStory : !item.wish.text?.trim());
+    button.addEventListener("click",readNote ? goToNote : goToWish);
+    if(readNote || bush?.hasStory) {
       li.className="student-line";
-      const wishButton=document.createElement("button");
-      wishButton.className="wish-link"; wishButton.textContent="Lời chúc";
-      wishButton.setAttribute("aria-label",`Lời chúc của ${item.name}`);
-      wishButton.addEventListener("click",goToWish);
-      button.classList.toggle("empty",!bush.hasStory);
-      if(bush.hasStory) markStudentStory(button);
-      button.addEventListener("click",()=>visitBush(item.index));
-      li.append(button,wishButton);
-    } else {
-      button.classList.toggle("empty",!(item.wish.text||"").trim());
-      button.addEventListener("click",goToWish);
-      li.append(button);
-    }
+      const secondary=document.createElement("button"), label=readNote ? "Lời chúc" : "Lời nhắn";
+      secondary.className="wish-link"; secondary.textContent=label;
+      secondary.setAttribute("aria-label",`${label} của ${item.name}`);
+      secondary.addEventListener("click",readNote ? goToWish : goToNote);
+      if(readNote && bush.hasStory) markStudentStory(button);
+      li.append(button,secondary);
+    } else li.append(button);
     list.append(li);
     return {li,button,item,search:normalize(item.name)};
   });
@@ -4914,7 +4916,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     const term=normalize($("search").value.trim());
     for (const row of rows) { row.li.hidden=!row.search.includes(term); row.button.classList.toggle("read",seen.has(row.item.index)); }
   }
-  $("search").hidden=tags.length<12; $("all").disabled=!tags.length;
+  $("search").hidden=tags.length<12; $("all").disabled=!publishedTags.length;
   $("search").addEventListener("input",refreshList);
   $("classButton").addEventListener("click",()=>{
     if (CONFIG.ownSubmission) showOwnStory();
@@ -4928,7 +4930,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
   albumPanel.addEventListener("close",()=>touchScene());
   $("closeList").addEventListener("click",()=>{ setRoster(false); $("classButton").focus(); });
   $("all").addEventListener("click",()=>{
-    queue=tags.slice();
+    queue=publishedTags.slice();
     for (let i=queue.length-1;i>0;i--) { const j=Math.floor(rand()*(i+1)); [queue[i],queue[j]]=[queue[j],queue[i]]; }
     if (queue.length) flyTo(queue.shift());
   });
