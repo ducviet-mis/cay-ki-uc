@@ -496,7 +496,7 @@
   async function unlock(passcode, admin) {
     const code = passcode.replace(/[\s-]/g,"").toUpperCase();
     const invalidCode = admin ? "Mã quản lý chưa đúng." : "Mã truy cập chưa đúng. Cô kiểm tra lại mã được gửi nhé.";
-    const format = admin ? /^(?:[0-9]{7}|[0-9A-F]{32})$/ : /^(?:[0-9]{6}|[0-9A-F]{20})$/;
+    const format = admin ? /^(?:[0-9]{7}|[0-9A-F]{32})$/ : /^(?:[0-9]{6}|[0-9A-F]{20}|[A-Z]{2,60})$/;
     if (!format.test(code)) throw new Error(invalidCode);
     if (!guestReady) {
       const {error} = await client.auth.signInAnonymously();
@@ -628,7 +628,7 @@
     if (!admin) setupStudentEntry(settings, receipt === null, receipt === null ? publicSlug : "");
     $("cayPasswordLabel").textContent = admin ? "Mã quản lý" : "Mã của cô giáo";
     $("cayLoginSubmit").textContent = admin ? "Mở trang quản lý" : "Mở cây";
-    password.inputMode = "numeric";
+    password.inputMode = admin ? "numeric" : "text";
     password.maxLength = 60;
     if (!admin && receipt !== null) {
       $("cayLoginTitle").textContent = "Bài của mình";
