@@ -1810,8 +1810,10 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
   const students = studentNames;
   const wishes = new Map(CONFIG.wishes.map(wish => [wish.student, wish]));
   const photos = [], tags = [], records = [], seen = new Set();
-  let low = CONFIG.quality === "low" || (CONFIG.quality === "auto" && smallScreen);
-  let effects = !low, adaptive = false, started = false, age = 0, clock = 0, raf = 0, lost = false;
+  const mobileAuto = CONFIG.quality === "auto" && smallScreen;
+  const firstTier = CONFIG.quality === "low" ? 2 : mobileAuto ? 1 : 0;
+  let qualityTier = firstTier, low = firstTier >= 2;
+  let effects = !low && !mobileAuto, started = false, age = 0, clock = 0, raf = 0, lost = false;
   let phase = 0, targetPhase = 0, playing = CONFIG.autoPlay, resumeAt = Infinity, dragTime = null;
   let a = 0, b = 1, blend = 0, growth = 0, lastInput = 0;
   const scene = new THREE.Scene(), foreground = new THREE.Scene();
@@ -1821,7 +1823,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
   let renderer;
   try {
     const canvas=document.createElement("canvas");
-    const options={antialias:!low,alpha:false,powerPreference:smallScreen ? "default" : "high-performance"};
+    const options={antialias:false,alpha:false,powerPreference:smallScreen ? "default" : "high-performance"};
     const context=canvas.getContext("webgl2",options) || canvas.getContext("webgl",options);
     if(!context) return null;
     renderer=new THREE.WebGLRenderer({...options,canvas,context});
@@ -1852,7 +1854,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
   });
   const U = {
     clock:u(0), phase:u(0), snow:u(0), haze:u(.022), light:u(1), leaf:u(.52), fx:u(1),
-    night:u(0), growth:u(0), rays:u(.8), warmth:u(0), gust:u(0), grade:u(vec(1,1,1)),
+    night:u(0), growth:u(0), rays:u(.8), warmth:u(0), gust:u(0), grade:u(vec(1,1,1)), detailLevel:u(1),
     sunDir:u(vec(0,.5,-1)), orb:u(vec(0,.2,-1)), wind:u(vec(1,0,0))
   };
   for (const name of channels) U[name]=u(color("#ffffff"));
@@ -1936,7 +1938,11 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
   // Vòm trời, quầng nắng và vệt sáng lọc qua các dải mây.
   const sky=mesh(new THREE.SphereGeometry(147,36,22),shader(`
     varying vec3 ray;
-    void main(){ray=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}
+    void main(){
+      ray=position;
+      gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);
+      gl_Position.z=gl_Position.w;
+    }
   `,`
     varying vec3 ray;
     uniform vec3 sky,horizon,sun,orb; uniform float clock,night,fx,rays,phase;
@@ -1956,23 +1962,31 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       c=mix(c,mix(sun,horizon,.44),veil*(.26-.14*night));
       float disc=1.-smoothstep(mix(.018,.033,night),mix(.022,.037,night),g);
       vec2 offset=d.xy-orb.xy;
-      float len=max(.003,length(offset));
-      float angle=atan(offset.y,offset.x);
-      float spokes=pow(max(0.,sin(angle*19.+.32)*.5+.5),7.)*.64+pow(max(0.,sin(angle*11.-.5)*.5+.5),10.)*.36;
-      float shaft=spokes*exp(-len*3.9)*smoothstep(.01,.059,len)*(1.-smoothstep(-.026,.13,offset.y));
-      c+=sun*(exp(-g*10.)*(.27+fx*.19)+shaft*rays*(.018+fx*.063))*(1.-night*.59);
-      vec3 moon=vec3(.78,.88,1.)*(.92+noise2(offset*110.)*.13+noise2(offset*255.)*.08);
-      float crescent=1.-smoothstep(.026,.039,length(d-normalize(orb+vec3(.022,.008,0.))));
-      c=mix(c,mix(vec3(1.,.967,.82),moon,night),disc*(1.-night*crescent*.58));
-      vec2 cells=vec2(atan(d.x,d.z)*102.,y*168.), cell=floor(cells);
-      vec2 pt=fract(cells)-vec2(.23+hash(cell+6.)*.54,.24+hash(cell+18.)*.53);
-      float star=1.-smoothstep(.038,.19,length(pt));
-      float stars=star*step(.955,hash(cell))*night*smoothstep(.028,.18,y);
-      c+=vec3(.78,.87,1.)*stars*(.31+.34*pow(.5+.5*sin(clock*.55+hash(cell)*39.),2.));
+      c+=sun*exp(-g*10.)*(.27+fx*.19)*(1.-night*.59);
+      if(fx>.04 && g<.68 && offset.y<.13) {
+        float len=max(.003,length(offset));
+        float angle=atan(offset.y,offset.x);
+        float spokes=pow(max(0.,sin(angle*19.+.32)*.5+.5),7.)*.64+pow(max(0.,sin(angle*11.-.5)*.5+.5),10.)*.36;
+        float shaft=spokes*exp(-len*3.9)*smoothstep(.01,.059,len)*(1.-smoothstep(-.026,.13,offset.y));
+        c+=sun*shaft*rays*fx*.081*(1.-night*.59);
+      }
+      if(disc>0.) {
+        vec3 moon=vec3(.78,.88,1.)*(.92+noise2(offset*110.)*.13+noise2(offset*255.)*.08);
+        float crescent=1.-smoothstep(.026,.039,length(d-normalize(orb+vec3(.022,.008,0.))));
+        c=mix(c,mix(vec3(1.,.967,.82),moon,night),disc*(1.-night*crescent*.58));
+      }
+      if(night>.008 && y>.028) {
+        vec2 cells=vec2(atan(d.x,d.z)*102.,y*168.), cell=floor(cells);
+        float brightness=hash(cell);
+        vec2 pt=fract(cells)-vec2(.23+hash(cell+6.)*.54,.24+hash(cell+18.)*.53);
+        float stars=(1.-smoothstep(.038,.19,length(pt)))*step(.955,brightness)*night*smoothstep(.028,.18,y);
+        c+=vec3(.78,.87,1.)*stars*(.31+.34*pow(.5+.5*sin(clock*.55+brightness*39.),2.));
+      }
       gl_FragColor=vec4(c,1.);
     }
   `,U,{side:THREE.BackSide,depthWrite:false}));
-  sky.renderOrder=-10;
+  // Vẽ nền trời sau vật thể đặc để GPU bỏ qua các điểm ảnh bị che.
+  sky.renderOrder=12;
 
   function canvasTexture(width,height,paint) {
     const canvas=document.createElement("canvas");
@@ -2025,10 +2039,40 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
 
   // Các bề mặt dùng chung ánh sáng theo mùa và sương theo khoảng cách.
   const shadowSpan=44;
-  const shadowMap=canvasTexture(256,256,()=>{});
+  const shadowSize=smallScreen ? 256 : 512;
+  const shadowMap=canvasTexture(shadowSize,shadowSize,()=>{});
   shadowMap.generateMipmaps=false;
   shadowMap.minFilter=THREE.LinearFilter;
   const shadowCtx=shadowMap.image.getContext("2d");
+  const barkGrain=canvasTexture(512,1024,(context,width,height)=>{
+    const image=context.createImageData(width,height), pixels=image.data;
+    for(let y=0;y<height;y++) {
+      const angle=y/height*tau;
+      const bend=Math.sin(angle)*.61+Math.sin(angle*3+.8)*.20;
+      const ripple=Math.cos(angle*7)*.08+Math.sin(angle*19)*.04;
+      for(let x=0;x<width;x++) {
+        const column=x/width*28;
+        const grain=column+bend+Math.sin(column*tau/7+angle*2)*.52;
+        const ridge=grain-Math.floor(grain);
+        const profile=.5-.5*Math.cos(ridge*tau);
+        const fault=.5+.5*Math.sin(Math.floor(grain)*tau*5/28+angle*3);
+        const crack=1-smooth(.02,.19+fault*.11,Math.min(ridge,1-ridge));
+        const cells=.5+.5*Math.sin(grain*tau*4+angle*21+ripple*18);
+        const flakes=.5+.5*Math.sin(angle*47+Math.floor(grain)*tau*9/28+cells*2);
+        const i=(y*width+x)*4;
+        pixels[i]=(.34+.37*profile+.13*cells+.13*flakes)*255;
+        pixels[i+1]=crack*255;
+        pixels[i+2]=(.5+Math.sin(ridge*tau)*(.24+fault*.17))*255;
+        pixels[i+3]=255;
+      }
+    }
+    context.putImageData(image,0,0);
+  });
+  barkGrain.wrapS=barkGrain.wrapT=THREE.RepeatWrapping;
+  barkGrain.generateMipmaps=true;
+  barkGrain.minFilter=THREE.LinearMipmapLinearFilter;
+  barkGrain.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),4);
+
   function surface(kind,tint="#ffffff") {
     return shader(`
       #define KIND ${kind}
@@ -2036,12 +2080,18 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       #if KIND == 1
         attribute vec3 growOrigin;
         attribute vec2 growTiming;
+        attribute vec2 barkUV;
+        attribute vec3 barkAxis;
+        varying vec2 woodUV;
+        varying vec3 woodAxis;
         uniform float growth;
       #endif
       void main(){
         vec4 local=vec4(position,1.); vec3 norm=normal;
         #if KIND == 1
           local.xyz=mix(growOrigin,position,smoothstep(growTiming.x,growTiming.y,growth));
+          woodUV=barkUV;
+          woodAxis=mat3(modelMatrix)*barkAxis;
         #endif
         #ifdef USE_INSTANCING
           local=instanceMatrix*local; norm=mat3(instanceMatrix)*norm;
@@ -2056,6 +2106,12 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       varying vec3 p,n,fiber,localPosition;
       uniform vec3 bark,grass,tint; uniform float leaf,warmth;
       uniform sampler2D shadowMap;
+      uniform float detailLevel;
+      #if KIND == 1
+        uniform sampler2D barkGrain;
+        varying vec2 woodUV;
+        varying vec3 woodAxis;
+      #endif
       ${noise} ${fogGL}
       void main(){
         vec3 norm=normalize(n), viewDir=normalize(cameraPosition-p);
@@ -2077,6 +2133,14 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
           meadow=mix(meadow,dirt,bare*.21);
           float worn=smoothstep(.24,.78,noise2(vec2(crossPath*4.8,p.z*1.22)));
           c=mix(meadow,mix(dirt*vec3(.89,.91,.87),dirt*vec3(1.24,1.20,1.13),worn),path);
+          float closeUp=(1.-smoothstep(8.,24.,distance(cameraPosition,p)))*detailLevel;
+          if(closeUp>.014) {
+            float pebble=noise2(p.xz*26.4);
+            float grit=smoothstep(.66,.92,pebble);
+            vec3 gravel=mix(c*1.16,vec3(.66,.60,.46),.21);
+            c=mix(c,gravel,grit*(.33+path*.44)*closeUp);
+            c*=1.-smoothstep(.52,.82,noise2(p.xz*11.4+vec2(.37,-.26)))*closeUp*.12;
+          }
           float shade=texture2D(shadowMap,vec2(p.x,-p.z)/${shadowSpan.toFixed(1)}+.5).a;
           float litSpecks=smoothstep(.53,.78,noise2((p.xz+sunDir.xz*1.9)*1.22)+grain*.14);
           float under=exp(-dot(p.xz,p.xz)*.31);
@@ -2085,15 +2149,19 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
           ice=smoothstep(.15,.86,snow*1.08+(meadowNoise-.54)*.49+(grain-.5)*.16+p.y*.12);
           ice*=smoothstep(0.,.20,snow);
         #elif KIND == 1
-          vec2 along=vec2((p.x+.63*p.z)*15.+sin(p.y*1.57+p.z)*.73,p.y*.57);
-          float fine=noise2(along);
-          float broken=sin(along.x*4.5+fine*2.4+sin(p.y*4.9+p.z)*.57);
-          float trench=smoothstep(.63,.98,broken);
-          float lip=smoothstep(-.91,-.28,broken)*(1.-smoothstep(.04,.67,broken));
-          float ridge=.44+fiber.r*.80+fine*.22-trench*.29+lip*.13;
-          c=bark*ridge;
-          float moss=(1.-smoothstep(.45,1.77,p.y))*smoothstep(.37,.66,meadowNoise*.49+grain*.37+fine*.16+max(norm.y,0.)*.24);
-          c=mix(c,vec3(.24,.37,.109)*(.69+grain*.54+lip*.20),moss*.94);
+          vec3 grainMap=texture2D(barkGrain,woodUV).rgb;
+          vec3 axis=normalize(woodAxis);
+          vec3 across=cross(axis,norm);
+          float relief=(grainMap.b-.5)*(.60+.46*detailLevel);
+          norm=normalize(norm+across*relief);
+          face=max(dot(norm,sunDir),0.);
+          float ridge=.61+fiber.r*.46+grainMap.r*.58-grainMap.g*.40;
+          c=bark*ridge*mix(vec3(.82,.82,.78),vec3(1.18,1.10,1.00),grain);
+          float moss=(1.-smoothstep(.34,1.84,p.y))*smoothstep(.34,.68,meadowNoise*.46+grain*.40+grainMap.r*.18+max(norm.y,0.)*.25);
+          vec3 greenMoss=mix(vec3(.16,.24,.075),vec3(.41,.48,.19),grainMap.r);
+          c=mix(c,greenMoss,moss*.91);
+          float lichen=smoothstep(.53,.78,grain*.70+meadowNoise*.30)*smoothstep(.40,.69,grainMap.r)*(1.-moss);
+          c=mix(c,vec3(.53,.53,.40),lichen*.31);
           c=mix(c,vec3(.041,.022,.016),fiber.g*.94);
           ice=snow*smoothstep(.14,.84,max(norm.y,0.)*snow+grain*.20+fiber.b*.12)*smoothstep(.26,.71,norm.y);
           ice*=1.-fiber.g;
@@ -2147,21 +2215,26 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
         #endif
         gl_FragColor=vec4(sceneColor,1.);
       }
-    `,{...U,tint:u(color(tint)),shadowMap:u(shadowMap)},{vertexColors:true,side:THREE.DoubleSide});
+    `,{...U,tint:u(color(tint)),shadowMap:u(shadowMap),barkGrain:u(barkGrain)},{vertexColors:true,side:THREE.DoubleSide});
   }
 
   const segments=SCENE_OPTIONS.pond ? 224 : 176;
   const terrain=new THREE.PlaneGeometry(192,192,segments,segments);
   terrain.rotateX(-Math.PI/2);
   const terrainPos=terrain.attributes.position;
-  for(let i=0;i<terrainPos.count;i++) terrainPos.setY(i,height(terrainPos.getX(i),terrainPos.getZ(i)));
+  const terrainCoordinate=value=>96*Math.sign(value)*Math.pow(Math.abs(value)/96,1.5);
+  for(let i=0;i<terrainPos.count;i++) {
+    const x=terrainCoordinate(terrainPos.getX(i)), z=terrainCoordinate(terrainPos.getZ(i));
+    terrainPos.setXYZ(i,x,height(x,z),z);
+  }
   terrain.computeVertexNormals();
   mesh(terrain,surface(0));
 
   const dummy=new THREE.Object3D();
   function instances(geometry,material,count,budget,place,parent=scene,crownData=false) {
     const compact=smallScreen && count>=1200 ? Math.max(1,Math.floor(budget*.79)) : budget;
-    const capacity=low ? compact : count;
+    const capacity=CONFIG.quality==="low" ? compact :
+      mobileAuto ? compact+Math.ceil((count-compact)*.32) : count;
     const item=keep(new THREE.InstancedMesh(keep(geometry),keep(material),capacity));
     const seeds=new Float32Array(capacity*3), info=crownData ? new Float32Array(capacity*4) : null;
     for(let i=0;i<capacity;i++) {
@@ -2177,7 +2250,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     geometry.setAttribute("seed",new THREE.InstancedBufferAttribute(seeds,3));
     if(info) geometry.setAttribute("crownInfo",new THREE.InstancedBufferAttribute(info,4));
     item.frustumCulled=false;
-    limited.push({item,budget:Math.min(capacity,compact)});
+    limited.push({item,capacity,budget:Math.min(capacity,compact)});
     parent.add(item);
     return item;
   }
@@ -2491,15 +2564,18 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
   const chimneyOrigin=house.localToWorld(vec(.62,2.49,-.30));
 
   // Cành chính uốn theo các điểm tựa của 20 cụm tán. Tất cả gỗ dùng một geometry.
-  const woodP=[],woodC=[],woodI=[],woodOrigin=[],woodTiming=[],crowns=[],birdPerches=[],iceSites=[];
+  const woodP=[],woodC=[],woodI=[],woodOrigin=[],woodTiming=[],woodUV=[],woodAxis=[],woodSeams=[];
+  const crowns=[],birdPerches=[],iceSites=[];
   const frontBark=vec(.23,0,.973);
   function tube(curve,r0,r1,rings,sides,main=false,birth=.72,finish=.92) {
     const origin=curve.getPointAt(0);
     const start=woodP.length/3, frames=curve.computeFrenetFrames(rings,false), phase=rand()*tau;
+    const columns=sides+1, length=curve.getLength();
     const radial=vec(0,0,0);
     for(let j=0;j<=rings;j++) {
       const t=j/rings, c=curve.getPointAt(t), radius=mix(r1,r0,Math.pow(1-t,1.22));
-      for(let k=0;k<sides;k++) {
+      const axis=frames.tangents[j];
+      for(let k=0;k<=sides;k++) {
         const angle=k/sides*tau+t*(main ? .63 : .25);
         radial.copy(frames.normals[j]).multiplyScalar(Math.cos(angle)).addScaledVector(frames.binormals[j],Math.sin(angle));
         const rib=.5+.5*Math.sin(angle*7+phase+t*.41);
@@ -2515,12 +2591,18 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
         }
         woodP.push(c.x+radial.x*r,c.y+radial.y*r,c.z+radial.z*r);
         woodOrigin.push(origin.x,origin.y,origin.z); woodTiming.push(birth,finish);
-        woodC.push(.22+rib*.45+fiber*.26+spread(.075),hollow,Math.abs(frames.tangents[j].y)<.65 ? .87 : .13);
-        if(j) {
-          const x=start+(j-1)*sides+k, y=start+(j-1)*sides+(k+1)%sides;
-          woodI.push(x,y,x+sides,y,y+sides,x+sides);
+        const row=start+j*columns;
+        const tone=k===sides ? woodC[row*3] : .22+rib*.45+fiber*.26+spread(.075);
+        woodC.push(tone,hollow,Math.abs(axis.y)<.65 ? .87 : .13);
+        woodUV.push(k/sides+phase/tau,t*length*.23+phase/tau*.71);
+        woodAxis.push(axis.x,axis.y,axis.z);
+        if(j && k<sides) {
+          const x=row-columns+k, y=x+1;
+          woodI.push(x,y,x+columns,y,y+columns,x+columns);
         }
       }
+      woodSeams.push(start+j*columns);
+      woodSeams.push(start+j*columns+sides);
     }
   }
   const trunk=new THREE.CatmullRomCurve3([
@@ -2638,8 +2720,17 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
   woodGeo.setAttribute("color",new THREE.Float32BufferAttribute(woodC,3));
   woodGeo.setAttribute("growOrigin",new THREE.Float32BufferAttribute(woodOrigin,3));
   woodGeo.setAttribute("growTiming",new THREE.Float32BufferAttribute(woodTiming,2));
+  woodGeo.setAttribute("barkUV",new THREE.Float32BufferAttribute(woodUV,2));
+  woodGeo.setAttribute("barkAxis",new THREE.Float32BufferAttribute(woodAxis,3));
   woodGeo.setIndex(woodI);
   woodGeo.computeVertexNormals();
+  const woodNormals=woodGeo.attributes.normal, seamNormal=vec(0,0,0), edgeNormal=vec(0,0,0);
+  for(let i=0;i<woodSeams.length;i+=2) {
+    const first=woodSeams[i], last=woodSeams[i+1];
+    seamNormal.fromBufferAttribute(woodNormals,first).add(edgeNormal.fromBufferAttribute(woodNormals,last)).normalize();
+    woodNormals.setXYZ(first,seamNormal.x,seamNormal.y,seamNormal.z);
+    woodNormals.setXYZ(last,seamNormal.x,seamNormal.y,seamNormal.z);
+  }
   const wood=mesh(woodGeo,surface(1),tree);
 
   // Lá xanh xuyên sáng, hoa năm cánh và các lớp thực vật trên mặt đất.
@@ -2657,6 +2748,9 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       uniform vec3 leafTones[5];
       varying vec3 p,n,c;
       varying float shell;
+      #if KIND == 0 || KIND == 3
+        varying vec2 leafCoord;
+      #endif
       void main(){
         float s=mod(phase+4.+(seed.y-.5)*.34,4.);
         float density=smoothstep(seed.x-.083,seed.x+.115,amount);
@@ -2691,6 +2785,9 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
         #endif
         p=(modelMatrix*local).xyz;
         n=normalize(mat3(modelMatrix)*mat3(instanceMatrix)*normal);
+        #if KIND == 0 || KIND == 3
+          leafCoord=position.xy;
+        #endif
         #if KIND == 0
           if(s<1.) c=mix(leafTones[0],leafTones[1],smoothstep(.05,.97,s));
           else if(s<2.) c=mix(leafTones[1],leafTones[2],smoothstep(1.36,2.,s));
@@ -2731,13 +2828,28 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       #define KIND ${kind}
       varying vec3 p,n,c;
       varying float shell;
+      #if KIND == 0 || KIND == 3
+        varying vec2 leafCoord;
+      #endif
       uniform sampler2D shadowMap;
+      uniform float detailLevel;
       ${fogGL}
       void main(){
         vec3 viewDir=normalize(cameraPosition-p), normal=normalize(n);
         normal*=dot(normal,viewDir)<0. ? -1. : 1.;
         float face=.18+.82*max(dot(normal,sunDir),0.);
         vec3 shade=lit(c,face);
+        #if KIND == 0 || KIND == 3
+          float closeUp=(1.-smoothstep(7.,24.,distance(cameraPosition,p)))*detailLevel;
+          if(closeUp>.012) {
+            float width=abs(leafCoord.x);
+            float spine=1.-smoothstep(.009,.034,width);
+            float rib=pow(.5+.5*cos((leafCoord.y-width*.73)*59.),15.);
+            float veins=(spine*.45+rib*.29)*sin(clamp(leafCoord.y,0.,1.)*3.14159);
+            float margin=smoothstep(.11,.28,width);
+            shade=mix(shade*(1.-margin*.18),shade*1.14+vec3(.13,.12,.035),veins*closeUp);
+          }
+        #endif
         #if KIND == 0
           float backSun=pow(max(0.,dot(-viewDir,sunDir)),2.);
           float transmission=backSun*(.19+.81*max(0.,dot(-normal,sunDir)));
@@ -2829,7 +2941,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     o.rotation.set(spread(3.1),rand()*tau,spread(3.4));
     return [shell,c.outer,c.tint,y*shell];
   }
-  instances(leafShape(),foliage(0,U.leaf,"#ffffff"),38700,14840,(o,i)=>{
+  instances(leafShape(),foliage(0,U.leaf,"#ffffff"),34100,14840,(o,i)=>{
     const bridge=i%12===0;
     const data=crownAt(o,bridge ? i/12 : i,14840,false,bridge ? crownBridges : crowns);
     o.scale.setScalar((.143+rand()*.220)*(bridge || i%11===0 ? .72 : 1));
@@ -3269,7 +3381,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       species.amount.value=weight*(species===perchBirds ? growth : 1);
       species.item.visible=species.amount.value>0;
     }
-    rays.visible=U.rays.value>.1 && (started || story.needsWorld);
+    rays.visible=qualityTier<3 && U.rays.value>.1 && (started || story.needsWorld);
   }
 
   // Ảnh in có lề kem. Pha hai texture trên GPU, kể cả khi khung được phóng lớn.
@@ -3808,9 +3920,9 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
   const speciesMeshes=[];
   // Tạo mẫu cánh và tâm theo loài, sau đó nhân bản mỗi mẫu theo danh sách lớp.
   function bloomGeometry(species,detailed) {
-    const positions=[], pigments=[], parts=[], triangles=[];
-    const vertex=(x,y,z,shade,kind)=>{
-      positions.push(x,y,z); pigments.push(shade); parts.push(kind);
+    const positions=[], pigments=[], parts=[], petalUV=[], triangles=[];
+    const vertex=(x,y,z,shade,kind,length=0,width=0)=>{
+      positions.push(x,y,z); pigments.push(shade); parts.push(kind); petalUV.push(length,width);
     };
     const faces=(start,cols,rows)=>{
       for(let j=0;j<rows;j++) for(let i=0;i<cols-1;i++) {
@@ -3827,14 +3939,14 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     };
     function petal(angle,layer,variant) {
       const shape=species.shape,[width,reach,start,curl,tip]=shapes[shape];
-      const count=detailed ? 6 : 4, sides=detailed && ["carnation","marigold","rose","poppy"].includes(shape) ? 7 : 5;
+      const count=detailed ? 8 : 4, sides=detailed && ["carnation","marigold","rose","poppy"].includes(shape) ? 9 : 5;
       const radius=1-layer*(shape==="rose" ? .20 : .155);
       const ax=Math.cos(angle),ay=Math.sin(angle),base=positions.length/3;
       for(let j=0;j<=count;j++) for(let i=0;i<sides;i++) {
         const t=j/count, cross=i/(sides-1)*2-1;
         const body=Math.pow(Math.sin(t*Math.PI*.98),shape==="daisy" ? .72 : .56);
         const fringe=Math.cos(cross*Math.PI*(shape==="carnation" ? 8 : 4)+variant*2);
-        const seam=.032*Math.cos(cross*Math.PI*4+variant)*t;
+        const seam=.026*Math.cos(cross*Math.PI*4+variant)*t;
         let radial=(start+(reach-start)*t)*radius;
         let x=width*body*cross*radius, z=.045+curl*(.18*t+.47*t*t)+layer*.108;
         radial-=Math.pow(Math.abs(cross),2)*t*t*(1-tip)*.44;
@@ -3868,7 +3980,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
         const vein=1-Math.abs(cross);
         const hue=.81+.14*t+.052*vein+.073*Math.sin(variant*6.9)+layer*.031;
         const kind=shape==="iris" && layer===0 && Math.abs(cross)<.28 && t<.64 && t>.26 ? .8 : 0;
-        vertex(radial*ax-x*ay,radial*ay+x*ax,z,hue,kind);
+        vertex(radial*ax-x*ay,radial*ay+x*ax,z,hue,kind,t,cross);
       }
       faces(base,sides,count);
     }
@@ -3891,7 +4003,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       for(let j=0;j<=count;j++) {
         const t=j/count*tau, outline=.67+.33*Math.pow(.5+.5*Math.cos(t*lobes),1.32);
         const angle=t+turn;
-        vertex(x+Math.cos(angle)*size*outline,y+Math.sin(angle)*size*outline,z+size*.085*Math.cos(t*lobes),tone+.065*Math.sin(j*2.41),0);
+        vertex(x+Math.cos(angle)*size*outline,y+Math.sin(angle)*size*outline,z+size*.085*Math.cos(t*lobes),tone+.065*Math.sin(j*2.41),0,1,Math.sin(t*lobes));
         if(j) triangles.push(first,first+j,first+j+1);
       }
     }
@@ -3934,6 +4046,7 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     geometry.setAttribute("position",new THREE.Float32BufferAttribute(positions,3));
     geometry.setAttribute("petalShade",new THREE.Float32BufferAttribute(pigments,1));
     geometry.setAttribute("petalPart",new THREE.Float32BufferAttribute(parts,1));
+    geometry.setAttribute("petalUV",new THREE.Float32BufferAttribute(petalUV,2));
     geometry.setIndex(triangles);
     geometry.computeVertexNormals();
     return geometry;
@@ -3945,11 +4058,13 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       attribute vec3 headTint;
       attribute vec2 headPose;
       attribute float petalShade,petalPart;
+      attribute vec2 petalUV;
       uniform float clock,appear,gust,motion,flowerFocal;
       uniform vec3 wind,flowerView,coreColor;
       uniform vec2 flowerSeason;
       uniform vec4 bushHover;
       varying vec3 worldPoint,normalHint,pigment;
+      varying vec2 tissueUV;
       varying float part;
       ${flowerWind}
       void main(){
@@ -3974,11 +4089,14 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
         ink=mix(ink,ink*vec3(1.15,.91,.74),flowerSeason.y*.46+warm*.23);
         pigment=ink*(petalShade*(1.+accent*.12));
         part=petalPart;
+        tissueUV=petalUV;
         gl_Position=projectionMatrix*viewMatrix*vec4(worldPoint,1.);
       }
     `,`
       varying vec3 worldPoint,normalHint,pigment;
+      varying vec2 tissueUV;
       varying float part;
+      uniform float detailLevel;
       ${noise} ${fogGL}
       void main(){
         vec3 eye=normalize(cameraPosition-worldPoint);
@@ -3988,6 +4106,14 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
         float pollen=noise2(worldPoint.xz*78.+worldPoint.y*58.);
         vec3 ink=pigment*(.83+face*.18)+sun*pigment*through*.18;
         ink*=mix(1.,.79+.29*pollen,step(.5,part)*(1.-step(1.5,part)));
+        if(part<.5) {
+          float tip=smoothstep(.63,1.,tissueUV.x);
+          float veins=.5+.5*cos(tissueUV.y*23.+tissueUV.x*3.);
+          float petalDetail=(1.-smoothstep(7.,21.,distance(cameraPosition,worldPoint)))*detailLevel;
+          ink*=.92+tip*.09+veins*.13*petalDetail;
+          float softGlow=pow(max(dot(n,normalize(sunDir+eye)),0.),10.);
+          ink+=sun*(softGlow*.055+tip*.031)*(.72+petalDetail*.28);
+        }
         gl_FragColor=vec4(mist(ink,worldPoint),1.);
       }
     `,{...U,appear:bushReveal,bushHover,flowerView,flowerFocal,flowerSeason,
@@ -4543,36 +4669,22 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     sky.position.copy(camera.position);
   }
 
-  // Lấy nét ở tiền cảnh và khi mở ảnh hoặc thiệp, cùng màu phim theo mùa.
+  // Giữ cảnh sắc nét khi khám phá. Chỉ làm mềm nền phía sau ảnh hoặc thiệp.
   const target=keep(new THREE.WebGLRenderTarget(2,2,{depthBuffer:true}));
-  const canSampleDepth=!smallScreen && (renderer.capabilities.isWebGL2 || renderer.extensions.has("WEBGL_depth_texture"));
-  if(canSampleDepth) {
-    target.depthTexture=keep(new THREE.DepthTexture(2,2));
-    target.depthTexture.type=THREE.UnsignedShortType;
-  }
   const post=new THREE.Scene(), screen=new THREE.Camera();
   const postU={
-    image:u(target.texture), depthImage:u(target.depthTexture||target.texture), pixel:u(new THREE.Vector2()),
-    focus:u(0), grading:u(0), grade:U.grade, soft:u(1), cameraRange:u(new THREE.Vector2(camera.near,camera.far))
+    image:u(target.texture), pixel:u(new THREE.Vector2()),
+    focus:u(0), grading:u(0), grade:U.grade, soft:u(1)
   };
   mesh(new THREE.PlaneGeometry(2,2),shader(`
     varying vec2 st;
     void main(){st=uv;gl_Position=vec4(position.xy,0.,1.);}
   `,`
-    #define DEPTH ${canSampleDepth ? 1 : 0}
-    uniform sampler2D image,depthImage; uniform vec2 pixel,cameraRange;
+    uniform sampler2D image; uniform vec2 pixel;
     uniform float focus,grading,soft; uniform vec3 grade;
     varying vec2 st;
     void main(){
-      float dof=0.;
-      #if DEPTH == 1
-        if(grading>.003) {
-          float d=texture2D(depthImage,st).r;
-          float distance=cameraRange.x*cameraRange.y/(cameraRange.y-d*(cameraRange.y-cameraRange.x));
-          dof=(1.-smoothstep(6.5,16.,distance))*2.12+smoothstep(46.,112.,distance)*.30;
-        }
-      #endif
-      float blur=soft*focus+dof*grading*(1.-focus);
+      float blur=soft*focus;
       vec3 c=texture2D(image,st).rgb;
       if(blur>.095) {
         vec2 stepPx=pixel*blur;
@@ -4597,9 +4709,20 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     }
   `,postU,{depthTest:false,depthWrite:false}),post).frustumCulled=false;
 
+  const qualitySettings=[
+    {pixels:3840*2160,density:1,detail:1},
+    {pixels:smallScreen ? 1_280_000 : 4_200_000,density:mobileAuto ? 1 : .72,detail:.86},
+    {pixels:smallScreen ? 830_000 : 1_650_000,density:.38,detail:.68},
+    {pixels:smallScreen ? 530_000 : 960_000,density:0,detail:.52},
+    {pixels:460_000,density:0,detail:.34}
+  ];
+  const gl=renderer.getContext();
+  const viewportLimit=gl.getParameter(gl.MAX_VIEWPORT_DIMS);
+  const bufferLimit=Math.min(renderer.capabilities.maxTextureSize,gl.getParameter(gl.MAX_RENDERBUFFER_SIZE));
+  const usesPost=()=>qualityTier<3 && (effects || !low && !!inspection);
   function draw() {
     updateReflection();
-    if(effects || (inspection && !low)) {
+    if(usesPost()) {
       renderer.setRenderTarget(target);
       renderer.clear();
       renderer.render(scene,camera);
@@ -4619,27 +4742,21 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     }
   }
   function renderPixelRatio(width,height) {
-    const nativeRatio=devicePixelRatio||1;
-    if(!smallScreen) return Math.min(nativeRatio,adaptive ? .86 : low ? 1.10 : 1.55);
-
-    // Giữ cảnh nét trên màn hình điện thoại và giới hạn số điểm ảnh GPU phải vẽ.
-    const maxRatio=adaptive ? 1.35 : 2;
-    const pixelBudget=adaptive ? 720_000 : effects ? 1_050_000 : 1_350_000;
-    const budgetRatio=Math.max(1,Math.sqrt(pixelBudget/(width*height)));
-    return Math.min(nativeRatio,maxRatio,budgetRatio);
+    const budget=qualitySettings[qualityTier].pixels;
+    const deviceRatio=Math.min(devicePixelRatio||1,smallScreen ? 2 : 4);
+    return Math.min(deviceRatio,Math.sqrt(budget/(width*height)),
+      Math.min(viewportLimit[0],bufferLimit)/width,Math.min(viewportLimit[1],bufferLimit)/height);
   }
   function resize() {
     const w=Math.max(1,innerWidth),h=Math.max(1,innerHeight);
     const dpr=renderPixelRatio(w,h);
-    const scale=smallScreen ? dpr : low ? .67 : Math.min(dpr,1.22);
-    renderer.setPixelRatio(dpr);
-    renderer.setSize(w,h);
+    renderer.setDrawingBufferSize(w,h,dpr);
     camera.aspect=w/h;
     camera.fov=2*Math.atan(Math.tan(43*Math.PI/360)*stageRatio())*180/Math.PI;
     camera.updateProjectionMatrix();
     flowerFocal.value=h*.5*camera.projectionMatrix.elements[5];
-    if(effects || !low) {
-      target.setSize(Math.max(1,Math.round(w*scale)),Math.max(1,Math.round(h*scale)));
+    if(qualityTier<3 && (effects || !low)) {
+      target.setSize(renderer.domElement.width,renderer.domElement.height);
       postU.pixel.value.set(1/target.width,1/target.height);
     } else if(target.width!==2 || target.height!==2) target.setSize(2,2);
     if(pond) {
@@ -4648,12 +4765,20 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
       pond.next=-1;
     }
   }
+  function applyQuality(tier) {
+    qualityTier=tier;
+    low=tier>=2;
+    const {density,detail}=qualitySettings[tier];
+    U.detailLevel.value=detail;
+    for(const {item,capacity,budget} of limited) item.count=Math.round(mix(budget,capacity,density));
+    resize();
+  }
   let resizeFrame=0;
   function queueResize() {
     if(!resizeFrame) resizeFrame=requestAnimationFrame(()=>{ resizeFrame=0; if(!lost) resize(); });
   }
   addEventListener("resize",queueResize);
-  resize();
+  applyQuality(firstTier);
 
   function open(item) {
     if (inspection) { pending=item; closeDetail(false); return; }
@@ -5091,19 +5216,41 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     story.onContextLost();
   });
   renderer.domElement.addEventListener("webglcontextrestored",()=>{ lost=false; resize(); story.onContextRestored(); });
-  let last=0, sample=0, frames=0;
-  document.addEventListener("visibilitychange",()=>{ last=0; sample=frames=0; });
+  let last=0, sample=0, frames=0, slowWindows=0, clearWindows=0, qualityCheckAfter=0;
+  function resetFrameSamples() { sample=frames=slowWindows=clearWindows=0; }
+  function adaptQuality(now,elapsed) {
+    if(CONFIG.quality!=="auto" || now<qualityCheckAfter) return;
+    sample+=Math.min(elapsed,.5);
+    frames++;
+    if(sample<1.35) return;
+    const interval=sample/frames;
+    sample=frames=0;
+    slowWindows=interval>.0182 ? slowWindows+1 : 0;
+    clearWindows=interval<=.0176 ? clearWindows+1 : 0;
+    if((interval>.028 || slowWindows>=2) && qualityTier<qualitySettings.length-1) {
+      const steps=interval>.042 ? 2 : 1;
+      applyQuality(Math.min(qualitySettings.length-1,qualityTier+steps));
+      qualityCheckAfter=now+1100;
+      resetFrameSamples();
+    } else if(clearWindows>=5 && qualityTier>firstTier && now>=qualityCheckAfter+6500) {
+      applyQuality(qualityTier-1);
+      qualityCheckAfter=now+1700;
+      resetFrameSamples();
+    }
+  }
+  document.addEventListener("visibilitychange",()=>{ last=0; resetFrameSamples(); });
   function frame(now) {
     if(document.hidden || lost || (!story.needsWorld && !story.warm)) {
       last=0; raf=requestAnimationFrame(frame);
       return;
     }
-    const elapsed=last ? (now-last)/1000 : .016, dt=Math.min(.4,elapsed);
+    const elapsed=last ? (now-last)/1000 : .016, dt=Math.min(.10,elapsed);
     last=now; clock+=dt;
     const inExplore=story.explore, firstExplore=inExplore&&!started;
     if (firstExplore) {
       if (!CONFIG.intro.enabled) placeStoryCamera();
       started=true; age=2.8; touchScene();
+      qualityCheckAfter=now+950;
       targetPhase=CONFIG.intro.enabled ? story.endSeason : 0;
       U.phase.value=targetPhase;
     }
@@ -5118,21 +5265,14 @@ const photosInStory = byId("cayStoryPhotos"), photoZoom = byId("cayPhotoZoom");
     }
     growth=inExplore || story.skipMature || story.state.stage===STAGES.REVEAL ? 1 :
       story.state.stage===STAGES.GROW ? smooth(0,1,story.phaseProgress) : 0;
-    U.clock.value=clock; U.growth.value=growth; U.fx.value=mix(U.fx.value,effects?1:0,1-Math.exp(-dt*7));
+    const cinematic=effects && qualityTier<3;
+    U.clock.value=clock; U.growth.value=growth; U.fx.value=mix(U.fx.value,cinematic?1:0,1-Math.exp(-dt*7));
     tree.scale.set(1,treeHeight,1); tree.visible=growth>.105;
     season(phase); animateNature(phase,dt); reflect(); cameraStep(dt);
     moveInspection(dt); animateRecords(dt); advanceTour(); animateBushes(dt); showStoryEffects();
     if(hover?.type==="bush") positionBushHint(hover);
     if (inExplore && !story.state.review) { story.sound.bed(0,true); ambient(); }
-    if (!adaptive && CONFIG.quality==="auto" && story.needsWorld && !inspection && !document.hidden) {
-      sample+=elapsed; frames++;
-      if (sample>2.6) {
-        if (frames/sample<(smallScreen ? 28 : 45)) {
-          low=adaptive=true; limited.forEach(({item,budget})=>{item.count=budget;}); setEffects(false); resize();
-        }
-        sample=frames=0;
-      }
-    }
+    if(inExplore && !story.state.review) adaptQuality(now,elapsed);
     if (!lost) { paintShadows(); draw(); story.state.warming=false; }
     raf=requestAnimationFrame(frame);
   }
