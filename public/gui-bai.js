@@ -12,6 +12,7 @@
   const messageTargetKey = "cay-student-next-message";
   const isTeacher = value => /^co-[1-4]$/.test(value ?? "");
   let messageTarget = isTeacher(query.get("co")) ? query.get("co") : query.get("viet") === "1" ? "viet" : "";
+  let messageKind = query.get("loai") === "nhan" ? "nhan" : "chuc";
   const settings = window.CAY_SUPABASE;
   const imageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
   const dateFormat = new Intl.DateTimeFormat("vi-VN", {
@@ -60,8 +61,26 @@
       $("studentBack").href = "./?xem=" + messageTarget;
       $("studentBack").textContent = "Quay lại cây";
     }
+    setupComposer();
     message(status, "");
     await refreshHistory();
+  }
+
+  function setupComposer() {
+    const privateNote = messageKind === "nhan";
+    const route = isTeacher(messageTarget) ? "?co=" + messageTarget : "?viet=1";
+    $("composeWish").href = route + "&loai=chuc";
+    $("composeNote").href = route + "&loai=nhan";
+    $(privateNote ? "composeNote" : "composeWish").setAttribute("aria-current","page");
+    $("composeTitle").textContent = privateNote ? "Thêm lời nhắn riêng" : "Thêm lời chúc";
+    $("composeHint").textContent = privateNote
+      ? "Chỉ bạn và cô nhận có thể đọc lời nhắn và mở ảnh. Bài gửi sẽ hiện ở bông hoa của bạn."
+      : "Mọi người có thể đọc lời chúc trên cây sau khi bài được duyệt.";
+    $("composeWishField").hidden = privateNote;
+    $("composeNoteField").hidden = $("composePhotosField").hidden = !privateNote;
+    form.elements.namedItem("wish").required = !privateNote;
+    form.elements.namedItem("story").required = privateNote;
+    button.textContent = privateNote ? "Gửi lời nhắn riêng" : "Gửi lời chúc";
   }
 
   async function refreshHistory() {
@@ -103,11 +122,12 @@
   async function start() {
     const code = query.get("code");
     if (code || query.has("error")) {
-      const pending = sessionStorage.getItem(messageTargetKey);
+      const [pending, kind] = (sessionStorage.getItem(messageTargetKey) ?? "").split(":");
       sessionStorage.removeItem(messageTargetKey);
       if (pending === "viet" || isTeacher(pending)) messageTarget = pending;
+      if (kind === "nhan" || kind === "chuc") messageKind = kind;
       const destination = isTeacher(messageTarget) ? "?co=" + messageTarget : messageTarget ? "?viet=1" : "";
-      history.replaceState(null, "", location.pathname + destination);
+      history.replaceState(null, "", location.pathname + (destination ? destination + "&loai=" + messageKind : ""));
       if (!code) return showLogin("Google chưa xác nhận đăng nhập. Bạn thử lại bằng Chrome hoặc Safari nhé.");
       const {error} = await client.auth.exchangeCodeForSession(code);
       if (error) return showLogin("Chưa hoàn tất đăng nhập Google. Bạn bấm đăng nhập lại nhé.");
@@ -126,7 +146,7 @@
     google.disabled = true;
     message(status, "Đang mở Google…");
     try {
-      await student.signIn(client, messageTarget);
+      await student.signIn(client, messageTarget ? messageTarget + ":" + messageKind : "");
     } catch {
       showLogin("Chưa mở được đăng nhập Google. Bạn thử lại sau nhé.");
     }
@@ -171,10 +191,11 @@
   });
 
   function readDraft() {
-    const wish = form.elements.namedItem("wish").value.trim();
-    const story = form.elements.namedItem("story").value.trim();
-    const photos = [...form.elements.namedItem("photos").files];
-    if (!wish && !story) throw new Error("Bạn điền ít nhất một lời chúc hoặc lời tâm sự nhé.");
+    const privateNote = messageKind === "nhan";
+    const wish = privateNote ? "" : form.elements.namedItem("wish").value.trim();
+    const story = privateNote ? form.elements.namedItem("story").value.trim() : "";
+    const photos = privateNote ? [...form.elements.namedItem("photos").files] : [];
+    if (!wish && !story) throw new Error(privateNote ? "Bạn điền lời nhắn riêng nhé." : "Bạn điền lời chúc nhé.");
     if (photos.length > 3 || photos.some(file => !imageTypes.has(file.type) || !file.size || file.size > 10485760)) {
       throw new Error("Chọn tối đa 3 ảnh JPG, PNG hoặc WebP, mỗi ảnh tối đa 10 MB.");
     }
@@ -212,7 +233,9 @@
       teacher.value = destination;
       view.href = "./?bai=" + encodeURIComponent(id);
       view.hidden = false;
-      message(submissionStatus, "Đã nhận bài gửi. Bạn có thể xem lại ngay trên cây.", "success");
+      message(submissionStatus, messageKind === "nhan"
+        ? "Đã gửi lời nhắn riêng vào bông hoa của bạn."
+        : "Đã gửi lời chúc để duyệt.", "success");
       view.focus();
       await refreshHistory();
     } catch (error) {
@@ -221,7 +244,7 @@
       message(submissionStatus, userError ? error.message : "Chưa gửi được bài. Bấm Gửi bài để thử lại.", "error");
     } finally {
       fields.disabled = signOut.disabled = false;
-      button.textContent = "Gửi bài";
+      button.textContent = messageKind === "nhan" ? "Gửi lời nhắn riêng" : "Gửi lời chúc";
     }
   });
 
