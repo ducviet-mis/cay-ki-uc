@@ -52,35 +52,33 @@
   }
 
   async function loadTree(config, slug) {
-    const [teacher, allStudents, messages, notes, photos] = await Promise.all([
+    const [teacher, roster, messages, notes, photos] = await Promise.all([
       client.from("cay_teachers").select("name,class_name,letter").eq("slug",slug).maybeSingle().then(result),
-      client.from("cay_students").select("number,name,class_roster").order("number").then(result),
+      client.rpc("cay_public_tree_roster", {p_teacher_slug:slug}).then(result),
       client.from("cay_messages").select("student_number,wish,note_date").eq("teacher_slug",slug).then(result),
       client.rpc("cay_tree_notes", {p_teacher_slug:slug}).then(result),
       client.from("cay_gallery").select("teacher_slug,slot,season,object_path,caption,photo_date")
         .then(response => galleryPhotos(result(response),slug,client)).catch(() => [])
     ]);
     if (!teacher) throw new Error("Chưa mở được cây. Cô thử nhập lại mã nhé.");
-    const classRoster = allStudents.filter(student => student.class_roster);
-    const roster = classRoster.length ? classRoster : allStudents;
-    const byStudent = new Map(messages.map(row => [row.student_number,row]));
     config.teacherName = window.CAY_TEACHERS.personalName(teacher.name);
     config.className = teacher.class_name;
     config.intro.letter = {...config.intro.letter,...teacher.letter};
-    config.students = roster.map(student => student.name);
-    config.studentNumbers = roster.map(student => student.number);
-    config.wishes = roster.map((student,index) => {
-      const message = byStudent.get(student.number);
-      return {student:index,text:message?.wish ?? "",date:message?.note_date ?? ""};
-    });
-    config.bushes.items = noteItems(roster,notes,student => student.number);
+    applyTreeRoster(config, roster, notes, messages);
     config.photos = photos;
   }
 
-  function noteItems(roster, notes, studentNumber) {
-    const byStudent = new Map(notes.map(row => [row.student_number,row]));
-    return roster.flatMap((student,index) => {
-      const note = byStudent.get(studentNumber(student));
+  function applyTreeRoster(config, roster, notes, messages = []) {
+    const wishesByStudent = new Map(messages.map(row => [row.student_number,row]));
+    const notesByStudent = new Map(notes.map(row => [row.student_number,row]));
+    config.students = roster.map(student => student.student_name);
+    config.studentNumbers = roster.map(student => student.student_number);
+    config.wishes = roster.map((student,index) => {
+      const message = wishesByStudent.get(student.student_number);
+      return {student:index,text:message?.wish ?? student.wish ?? "",date:message?.note_date ?? ""};
+    });
+    config.bushes.items = roster.flatMap((student,index) => {
+      const note = notesByStudent.get(student.student_number);
       return note ? [{student:index,story:note.story,date:noteDate.format(new Date(note.submitted_at)),photos:note.photo_paths}] : [];
     });
   }
@@ -116,10 +114,7 @@
       closing:"Thương mến,",
       signature:"Tập thể lớp"
     };
-    config.students = roster.map(row => row.student_name);
-    config.studentNumbers = roster.map(row => row.student_number);
-    config.wishes = roster.map(({wish},student)=>({student,text:wish}));
-    config.bushes.items = noteItems(roster,notes,student => student.student_number);
+    applyTreeRoster(config, roster, notes);
     if (photos.length) config.photos = photos;
   }
 
