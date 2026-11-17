@@ -49,9 +49,9 @@ const CONFIG = {
     enabled: true,
     letter: {
       greeting: "Kính gửi cô [TÊN CÔ],", // [TÊN CÔ] sẽ lấy từ teacherName.
-      paragraphs: ["Nội dung thư của lớp sẽ được điền ở đây. Đoạn 1.", "Đoạn 2.", "Đoạn 3."],
-      closing: "Học trò của cô,",
-      signature: "[Tên đại diện lớp]",
+      paragraphs: ["Cảm ơn cô vì những ngày tháng cùng lớp. Mỗi tấm thiệp trên cây là một lời chúc chúng em gửi cô."],
+      closing: "Thương mến,",
+      signature: "Tập thể lớp",
       date: "" // Để trống để ẩn ngày.
     },
     letterWriteSpeed: 1, // 1 = bình thường, tăng số để viết nhanh hơn.
@@ -271,7 +271,7 @@ body.intro-active #cayExit, #cayExit[inert] { display:none }
   transition:transform .22s ease; will-change:transform;
 }
 #openEnvelope {
-  position:relative; isolation:isolate; display:block; width:min(76vw,510px); aspect-ratio:1.66;
+  position:relative; isolation:isolate; display:block; width:min(76vw,510px,96dvh); aspect-ratio:1.66;
   border:0; border-radius:5px; padding:0; background:none; color:#51331e;
   transform:rotate(-5deg); animation:envelopeBreath 7s ease-in-out infinite;
 }
@@ -327,13 +327,17 @@ body.intro-active #cayExit, #cayExit[inert] { display:none }
 #intro.is-opening .wax-crack { animation:waxCrack var(--env-time) ease both }
 #intro.is-opening .wax-part:first-child { animation:waxLeft var(--env-time) ease-in both }
 #intro.is-opening .wax-part:nth-child(2) { animation:waxRight var(--env-time) ease-in both }
-#intro.is-opening .envelope-flap { animation:flapOpen var(--env-time) ease-in-out both }
+#intro.is-opening .envelope-flap { animation:flapOpen var(--env-time) ease-in-out both,flapRestack var(--env-time) step-end both }
 #intro.is-opening .envelope-insert { animation:insertRise var(--env-time) ease-in-out both }
 @keyframes waxCrack { 0%,7%{opacity:0} 13%,23%{opacity:1} 30%,100%{opacity:0} }
 @keyframes waxLeft { 0%,16%{transform:none;opacity:1} 40%,100%{transform:translate(-44px,143px) rotate(-64deg);opacity:0} }
 @keyframes waxRight { 0%,16%{transform:none;opacity:1} 42%,100%{transform:translate(51px,151px) rotate(79deg);opacity:0} }
 @keyframes flapOpen { 0%,19%{transform:rotateX(0)} 53%,100%{transform:rotateX(172deg)} }
-@keyframes insertRise { 0%,40%{transform:none} 75%,100%{transform:translateY(-81%) scale(1.09)} }
+@keyframes flapRestack { 0%{z-index:3} 36%,100%{z-index:0} }
+@keyframes insertRise {
+  0%,40% { transform:none }
+  75%,100% { transform:translateY(clamp(-81%,calc(50% + 44px - 50dvh),0px)) scale(1.04) }
+}
 .story-hint {
   position:absolute; left:14px; right:14px; bottom:max(63px,calc(env(safe-area-inset-bottom) + 53px));
   margin:0; text-align:center; font-size:11px; letter-spacing:.05em; color:#e4cbb3;
@@ -840,7 +844,7 @@ body:has(#intro:not([hidden])) #bushProgress { visibility: hidden }
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.3/dist/umd/supabase.min.js"></script>
 <script src="./cay-config.js"></script>
 <script src="./student-session.js?v=tree-first"></script>
-<script src="./cay-data.js?v=quay-lai-quan-ly"></script>
+<script src="./cay-data.js?v=thu-mo-dau"></script>
 <script>
 (async () => {
   "use strict";
