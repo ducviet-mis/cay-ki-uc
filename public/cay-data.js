@@ -489,8 +489,11 @@
         return {number,name,class_roster: name !== "Học sinh " + number};
       });
       if (!rows.length) throw new Error("Danh sách lớp đang trống.");
-      result(await client.from("cay_students").upsert(rows,{onConflict:"number"}));
-      roster.splice(0,roster.length,...result(await client.from("cay_students").select("number,name").order("number")));
+      const saved = result(await client.rpc("cay_save_student_roster", {
+        p_rows: rows,
+        p_expected_rows: roster.map(({number,name}) => ({number,name}))
+      }));
+      roster.splice(0,roster.length,...saved);
       $("cayRoster").value = roster.map(student => student.number + "," + student.name).join("\n");
       return "Đã lưu danh sách lớp.";
     });
